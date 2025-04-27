@@ -38,7 +38,6 @@ COPY --from=prod-deps /usr/src/app/node_modules ./node_modules
 
 # Copy các file cần thiết khác (ví dụ env, config)
 COPY package.json ./
-COPY .env ./
 
 # Expose port
 EXPOSE $PORT
