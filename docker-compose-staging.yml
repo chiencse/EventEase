@@ -7,10 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - '${DB_PORT:-5432}:5432'
-    environment:
-      POSTGRES_USER: '${DB_USERNAME:-postgres}'
-      POSTGRES_PASSWORD: '${DB_PASSWORD:-postgres}'
-      POSTGRES_DB: '${DB_NAME:-sampledb}'
+    env_file:
+      - .env
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
@@ -19,22 +17,14 @@ services:
   app:
     image: ghcr.io/${GHCR_USERNAME}/sample_app:latest
     container_name: sample_app
+    env_file:
+      - .env
     ports:
-      - '${APP_PORT:-3000}:3000'
-    environment:
-      NODE_ENV: staging
-      PORT: 3000
-      DB_HOST: db
-      DB_PORT: '${DB_PORT:-5435}'
-      DB_USERNAME: '${DB_USERNAME:-postgres}'
-      DB_PASSWORD: '${DB_PASSWORD:-postgres}'
-      DB_NAME: '${DB_NAME:-sampledb}'
-      JWT_SECRET: '${JWT_SECRET:-your-staging-secret-key}'
+      - '${PORT}:${PORT}'
     depends_on:
       - db
     networks:
       - backend
-    command: ['npm', 'run', 'start:prod']
 
 volumes:
   db_data:
