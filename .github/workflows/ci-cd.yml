@@ -104,16 +104,18 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Bump version using standard-version
-        run: npm run release
-
-      - name: Commit version bump
+      - name: Set up Git user
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git commit -am "chore(release): bump version"
-          git tag v$(node -p -e "require('./package.json').version")
-          git push --follow-tags
+
+      - name: Bump version using standard-version
+        run: npm run release
+
+      - name: Push changes and tags
+        run: |
+          git push origin HEAD:main
+          git push --tags
 
   create-release:
     name: Create GitHub Release
