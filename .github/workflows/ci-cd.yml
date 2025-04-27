@@ -118,7 +118,8 @@ jobs:
            git push origin --tags
        - name: Extract version from package.json
          id: extract_version
-         run: echo "VERSION=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+         run: |
+           echo "VERSION=$(node -p 'require(\"./package.json\").version')" >> $GITHUB_OUTPUT
 
 
    create-release:
