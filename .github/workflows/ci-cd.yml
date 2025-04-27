@@ -112,5 +112,6 @@ jobs:
           sed -i 's|\(https://img.shields.io/badge/version-\).*\(-blue\)|\1'"$VERSION"'\2|' README.md
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git commit -am "docs: update version badge to $VERSION"
-          git push
+          git add README.md || true
+          git diff --cached --quiet || (git commit -m "docs: update version badge to $VERSION" && git push)
+
