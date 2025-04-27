@@ -1,0 +1,88 @@
+name: 🚀 Deploy NestJS App via Docker Compose
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/sample_app
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests
+      run: npm run test
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Login to GHCR
+      run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+
+    - name: Build Docker image
+      run: docker build -t $IMAGE_NAME:latest .
+
+    - name: Push Docker image
+      run: docker push $IMAGE_NAME:latest
+
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Create local .env file
+      run: echo "${{ secrets.ENV_FILE }}" > .env
+
+    - name: Copy files to EC2
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: ".env,docker-compose-staging.yml"
+        target: /home/${{ secrets.EC2_USER }}/nestjs-deploy
+
+    - name: SSH and Deploy
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        envs: GHCR_TOKEN,GHCR_USERNAME,IMAGE_NAME
+        script: |
+          cd /home/${{ secrets.EC2_USER }}/nestjs-deploy
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+          docker compose -f docker-compose-staging.yml down
+          docker rmi $IMAGE_NAME:latest || true
+          docker compose -f docker-compose-staging.yml pull
+          docker compose -f docker-compose-staging.yml up -d
+      env:
+        GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+        IMAGE_NAME: ${{ env.IMAGE_NAME }}
