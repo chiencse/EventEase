@@ -118,8 +118,9 @@ jobs:
            git push origin --tags
        - name: Extract version from package.json
          id: extract_version
-         run: echo "::set-output name=VERSION::$(node -p -e \"require('./package.json').version\")"
- 
+         run: echo "VERSION=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+
+
    create-release:
      name: Create GitHub Release
      runs-on: ubuntu-latest
@@ -133,7 +134,9 @@ jobs:
        - name: Create GitHub Release
          uses: softprops/action-gh-release@v1
          with:
-           tag_name: v${{ steps.extract_version.outputs.VERSION }}
+           tag_name: v${{ needs.release.outputs.VERSION }}
+           name: Release v${{ needs.release.outputs.VERSION }}
+           files: ./dist/*
          env:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
  
