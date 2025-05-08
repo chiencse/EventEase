@@ -13,7 +13,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { LoginDto } from './dto/Login.dto';
-import { AuthGuard } from 'src/Guards/AppGuard';
+import { AuthGuard } from 'src/common/guards/auth.guard';
 
 @Controller('user')
 @ApiTags('User')

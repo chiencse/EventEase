@@ -3,8 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { UserModule } from './user/user.module';
-import { ProductModule } from './product/product.module';
+import { UserModule } from './modules/user/user.module';
 import dataSource from 'ormconfig';
 import { JwtModule } from '@nestjs/jwt';
 
@@ -30,7 +29,6 @@ import { JwtModule } from '@nestjs/jwt';
     }),
 
     UserModule,
-    ProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],
