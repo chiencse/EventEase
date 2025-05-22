@@ -31,11 +31,7 @@ export class CreateEventDto implements IEvent {
   })
   @IsDate({ message: 'Thời gian kết thúc phải đúng định dạng dd/MM/yyyy HH:mm' })
   endTime: Date;
-
-  @ApiProperty({ example: 'tech' })
-  @IsString({ message: 'Tag phải là chuỗi.' })
-  tag: string;
-
+  
   @ApiProperty({ example: 100 })
   @Transform(({ value }) => {
     const num = Number(value);
@@ -49,6 +45,18 @@ export class CreateEventDto implements IEvent {
   @ApiProperty({ example: 'Phòng A1.01, ĐH Bách Khoa' })
   @IsString({ message: 'Vị trí phải là chuỗi.' })
   position: string;
+
+  @ApiProperty({ type: 'array', items: { type: 'string' }, example: ['#tech', '#ai', '#workshop'] })
+  @IsArray({ message: 'Hashtags phải là một mảng.' })
+  @IsString({ each: true, message: 'Mỗi hashtag phải là một chuỗi.' })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map(tag => tag.trim());
+    }
+    return value;
+  })
+  hashtags?: string[];
 
   @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' } })
   @IsArray()

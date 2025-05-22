@@ -4,11 +4,10 @@ import { CreateFavouriteEventDto } from '../dto/favourite-event.dto';
 import { FavouriteEventResponseDto } from '../dto/favourite-event-response.dto';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { IResponse } from 'src/common/interfaces/response.interface';
-import { AuthGuard } from 'src/common/guards/auth.guard';
 
 @Controller('favourite-events')
 @ApiTags('Favourite Events')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 // @UseGuards(AuthGuard)
 export class FavouriteEventController {
     constructor(private readonly favouriteEventService: FavouriteEventService) {}

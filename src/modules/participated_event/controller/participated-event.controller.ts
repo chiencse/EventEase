@@ -4,11 +4,10 @@ import { CreateParticipatedEventDto } from '../dto/participated-event.dto';
 import { ParticipatedEventResponseDto } from '../dto/participated-event-response.dto';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { IResponse } from 'src/common/interfaces/response.interface';
-import { AuthGuard } from 'src/common/guards/auth.guard';
 
 @Controller('participated-events')
 @ApiTags('Participated Events')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 // @UseGuards(AuthGuard)
 export class ParticipatedEventController {
     constructor(private readonly participatedEventService: ParticipatedEventService) {}

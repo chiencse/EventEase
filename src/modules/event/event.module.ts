@@ -8,12 +8,14 @@ import { TrackedEvent } from '../tracked_event/entities/tracked-event.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { S3Module } from 'src/common/s3/s3.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { AuditInterceptor } from 'src/common/interceptors/audit.interceptor';
+import { Hashtag } from './entities/hashtag.entity';
+import { EventHashtag } from './entities/event-hashtag.entity';
+import { HashtagService } from './service/hashtag.service';
+import { HashtagController } from './controller/hashtag.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Event, ImageEvent, TrackedEvent]),
+    TypeOrmModule.forFeature([Event, ImageEvent, TrackedEvent, Hashtag, EventHashtag]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async () => ({
@@ -23,14 +25,11 @@ import { AuditInterceptor } from 'src/common/interceptors/audit.interceptor';
     }),
     S3Module
   ],
-  controllers: [EventController,],
+  controllers: [EventController, HashtagController],
   providers: [
     EventService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: AuditInterceptor,
-    }
+    HashtagService
   ],
-  exports: [EventService,]
+  exports: [EventService, HashtagService]
 })
 export class EventModule {}

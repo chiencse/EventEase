@@ -1,16 +1,18 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
 import dataSource from 'src/database/ormconfig';
+import { UserModule } from './modules/user/user.module';
 import { EventModule } from './modules/event/event.module';
 import { TrackedEventModule } from './modules/tracked_event/tracked-event.module';
 import { FavouriteEventModule } from './modules/favourite_event/favourite-event.module';
 import { ParticipatedEventModule } from './modules/participated_event/participated-event.module';
 import { S3Service } from './common/s3/s3.service';
 import { AppService } from './app.service';
-
+import { AuthModule } from './modules/auth/auth.module';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 /**
  * AppModule là module gốc của toàn bộ ứng dụng NestJS.
  * Tại đây sẽ cấu hình:
@@ -47,6 +49,8 @@ import { AppService } from './app.service';
     }),
 
     // Các module nghiệp vụ
+    AuthModule,
+    UserModule,
     EventModule,
     TrackedEventModule,
     FavouriteEventModule,
@@ -67,9 +71,14 @@ import { AppService } from './app.service';
  * AppModule là module gốc của ứng dụng.
  * Tại đây sẽ cấu hình các module, controller, provider cần thiết cho toàn bộ ứng dụng.
  */
-export class AppModule {
+export class AppModule implements NestModule {
   constructor(private readonly appService: AppService) {
     console.log('AppModule initialized');
-    // console.log('ENVIRONMENT VARIABLES:', process.env.JWT_SECRET);
+  }
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestContextMiddleware)
+      .forRoutes('*');
   }
 }

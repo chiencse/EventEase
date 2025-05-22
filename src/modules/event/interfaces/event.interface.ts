@@ -7,9 +7,9 @@ export interface IEvent {
     description: string;
     startTime: Date;
     endTime: Date;
-    tag: string;
     participantNumber: number;
     position: string;
+    hashtags?: string[];
     images?: MulterFile[];
 }
 
@@ -19,8 +19,8 @@ export interface IEventResponse {
     description: string;
     startTime: Date;
     endTime: Date;
-    tag: string;
     participantNumber: number;
     position: string;
+    hashtags: string[];
     images?: IImageInfo[];
 }

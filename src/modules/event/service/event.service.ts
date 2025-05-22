@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 
 import { Event } from '../entities/event.entity';
 import { ImageEvent } from '../entities/image-event.entity';
+import { EventHashtag } from '../entities/event-hashtag.entity';
+import { Hashtag } from '../entities/hashtag.entity';
 import { S3Service } from 'src/common/s3/s3.service';
 import { CreateEventDto } from '../dto/request/create-event.dto';
 import { IResponse } from 'src/common/interfaces/response.interface';
@@ -11,6 +13,7 @@ import { ResponseUtil } from 'src/common/utils/response.util';
 import { IEvent } from '../interfaces/event.interface';
 import { EventResponseDto } from '../dto/response/event-response.dto';
 import { EventMapper } from '../mappers/event.mapper';
+import { HashtagService } from './hashtag.service';
 
 @Injectable()
 export class EventService {
@@ -21,11 +24,60 @@ export class EventService {
         @InjectRepository(ImageEvent)
         private readonly imageRepository: Repository<ImageEvent>,
 
+        @InjectRepository(EventHashtag)
+        private readonly eventHashtagRepository: Repository<EventHashtag>,
+
+        @InjectRepository(Hashtag)
+        private readonly hashtagRepository: Repository<Hashtag>,
+
         private readonly s3Service: S3Service,
+        private readonly hashtagService: HashtagService,
     ) {}
     
     /**
-     * Tạo mới một sự kiện kèm danh sách ảnh (nếu có).
+     * Xử lý hashtags cho event
+     * - Nếu hashtag đã tồn tại: lấy ID và tạo liên kết
+     * - Nếu hashtag chưa tồn tại: tạo mới, lấy ID và tạo liên kết
+     */
+    private async handleHashtags(event: Event, hashtagNames: string[]): Promise<void> {
+        // Xóa các event-hashtag cũ nếu có
+        if (event.eventHashtags) {
+            await this.eventHashtagRepository.remove(event.eventHashtags);
+        }
+
+        // Xử lý từng hashtag
+        for (const hashtagName of hashtagNames) {
+            // Chuẩn hóa tên hashtag
+            const normalizedName = hashtagName.trim().toLowerCase();
+            
+            // Tìm hashtag đã tồn tại
+            let hashtag = await this.hashtagRepository.findOne({
+                where: { name: normalizedName }
+            });
+
+            // Nếu chưa tồn tại thì tạo mới
+            if (!hashtag) {
+                hashtag = this.hashtagRepository.create({
+                    name: normalizedName,
+                    usageCount: 1
+                });
+                await this.hashtagRepository.save(hashtag);
+            } else {
+                // Nếu đã tồn tại thì tăng số lần sử dụng
+                await this.hashtagService.incrementUsageCount(hashtag.id);
+            }
+
+            // Tạo liên kết event-hashtag
+            const eventHashtag = this.eventHashtagRepository.create({
+                event,
+                hashtag
+            });
+            await this.eventHashtagRepository.save(eventHashtag);
+        }
+    }
+    
+    /**
+     * Tạo mới một sự kiện kèm danh sách ảnh và hashtags
      * - Lưu dữ liệu sự kiện vào bảng `events`
      * - Upload ảnh lên S3
      * - Lưu thông tin ảnh vào bảng `image_event` (ảnh đầu tiên sẽ được đặt làm ảnh chính)
@@ -36,10 +88,15 @@ export class EventService {
      */
     async create(createEventDto: CreateEventDto): Promise<IResponse<EventResponseDto | null>> {
         try {
-            const { images, ...eventData } = createEventDto;
+            const { images, hashtags, ...eventData } = createEventDto;
           
             const newEvent = this.eventRepository.create(eventData);
             const savedEvent = await this.eventRepository.save(newEvent);
+
+            // Xử lý hashtags
+            if (hashtags && hashtags.length > 0) {
+                await this.handleHashtags(savedEvent, hashtags);
+            }
           
             if (images && images.length > 0) {
                 const urls = await this.s3Service.uploadBatch(images, 'events');
@@ -60,7 +117,7 @@ export class EventService {
           
             const event = await this.eventRepository.findOne({
                 where: { id: savedEvent.id },
-                relations: ['images'],
+                relations: ['images', 'eventHashtags', 'eventHashtags.hashtag'],
             });
 
             if (!event) {
@@ -87,7 +144,7 @@ export class EventService {
     async findAll(): Promise<IResponse<EventResponseDto[] | null>> {
         try {
             const events = await this.eventRepository.find({
-                relations: ['images']
+                relations: ['images', 'eventHashtags', 'eventHashtags.hashtag']
             });
             
             const eventDtos = events
@@ -111,11 +168,11 @@ export class EventService {
      * @param id - ID của sự kiện cần lấy
      * @returns Response chuẩn chứa thông tin sự kiện
      */
-    async findOne(id: number): Promise<IResponse<EventResponseDto | null>> {
+    async findOne(id: string): Promise<IResponse<EventResponseDto | null>> {
         try {
             const event = await this.eventRepository.findOne({
                 where: { id },
-                relations: ['images']
+                relations: ['images', 'eventHashtags', 'eventHashtags.hashtag']
             });
 
             if (!event) {
@@ -150,7 +207,7 @@ export class EventService {
      * @param updateEventDto - Dữ liệu cập nhật sự kiện
      * @returns Response chuẩn chứa thông tin sự kiện sau khi cập nhật
      */
-    async update(id: number, updateEventDto: IEvent): Promise<IResponse<EventResponseDto | null>> {
+    async update(id: string, updateEventDto: IEvent): Promise<IResponse<EventResponseDto | null>> {
         try {
             const event = await this.eventRepository.findOne({
                 where: { id },
@@ -225,7 +282,7 @@ export class EventService {
      * @param id - ID của sự kiện cần xóa
      * @returns Response chuẩn thông báo kết quả xóa
      */
-    async remove(id: number): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             // Kiểm tra sự kiện tồn tại
             const event = await this.eventRepository.findOne({
@@ -274,7 +331,7 @@ export class EventService {
      * @param imageId - ID của ảnh cần đặt làm ảnh chính
      * @returns Response chuẩn chứa thông tin sự kiện sau khi cập nhật
      */
-    async setMainImage(eventId: number, imageId: number): Promise<IResponse<EventResponseDto | null>> {
+    async setMainImage(eventId: string, imageId: number): Promise<IResponse<EventResponseDto | null>> {
         try {
             const event = await this.eventRepository.findOne({
                 where: { id: eventId },
@@ -327,6 +384,93 @@ export class EventService {
                     `Lỗi khi cập nhật ảnh chính: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Lấy danh sách sự kiện có phân trang
+     * @param page Số trang (mặc định: 1)
+     * @param limit Số lượng sự kiện mỗi trang (mặc định: 10)
+     * @param search Từ khóa tìm kiếm (tìm theo tên sự kiện)
+     * @returns Danh sách sự kiện và thông tin phân trang
+     */
+    async findAllWithPagination(
+        page: number = 1,
+        limit: number = 10,
+        search?: string
+    ): Promise<IResponse<{
+        items: EventResponseDto[];
+        meta: {
+            totalItems: number;
+            itemCount: number;
+            itemsPerPage: number;
+            totalPages: number;
+            currentPage: number;
+        };
+    }>> {
+        try {
+            // Tạo query builder
+            const queryBuilder = this.eventRepository
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.images', 'images')
+                .leftJoinAndSelect('event.eventHashtags', 'eventHashtags')
+                .leftJoinAndSelect('eventHashtags.hashtag', 'hashtag');
+
+            // Thêm điều kiện tìm kiếm nếu có
+            if (search) {
+                queryBuilder.where('event.title ILIKE :search', { search: `%${search}%` });
+            }
+
+            // Tính toán offset
+            const skip = (page - 1) * limit;
+
+            // Lấy danh sách sự kiện với phân trang và tổng số
+            const [events, totalItems] = await queryBuilder
+                .skip(skip)
+                .take(limit)
+                .orderBy('event.createdAt', 'DESC')
+                .getManyAndCount();
+
+            // Chuyển đổi sang DTO
+            const eventDtos = events
+                .map(event => EventMapper.toResponseDto(event))
+                .filter((dto): dto is EventResponseDto => dto !== null);
+
+            // Tính toán thông tin phân trang
+            const totalPages = Math.ceil(totalItems / limit);
+            const itemCount = eventDtos.length;
+
+            return ResponseUtil.success({
+                items: eventDtos,
+                meta: {
+                    totalItems,
+                    itemCount,
+                    itemsPerPage: limit,
+                    totalPages,
+                    currentPage: page,
+                },
+            }, 'Lấy danh sách sự kiện thành công');
+        } catch (error) {
+            if (error instanceof Error) {
+                return {
+                    data: {
+                        items: [],
+                        meta: {
+                            totalItems: 0,
+                            itemCount: 0,
+                            itemsPerPage: limit,
+                            totalPages: 0,
+                            currentPage: page
+                        }
+                    },
+                    message: `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    status: false,
+                    code: HttpStatus.INTERNAL_SERVER_ERROR,
+                    path: '/events',
+                    timestamp: new Date().toISOString()
+                };
             }
             throw error;
         }

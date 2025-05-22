@@ -1,6 +1,7 @@
 import { Event } from '../entities/event.entity';
 import { EventResponseDto } from '../dto/response/event-response.dto';
 import { ImageInfoDto } from '../dto/response/image-info-response.dto';
+import { HashtagResponseDto } from '../dto/response/hashtag-response.dto';
 
 export class EventMapper {
 
@@ -18,7 +19,6 @@ export class EventMapper {
         response.description = event.description;
         response.startTime = event.startTime;
         response.endTime = event.endTime;
-        response.tag = event.tag;
         response.participantNumber = event.participantNumber;
         response.position = event.position;
 
@@ -30,6 +30,16 @@ export class EventMapper {
                 imageDto.size = parseInt(image.fileSize);
                 imageDto.filename = image.fileName;
                 return imageDto;
+            });
+        }
+
+        if (event.eventHashtags && event.eventHashtags.length > 0) {
+            response.hashtags = event.eventHashtags.map(eh => {
+                const hashtagDto = new HashtagResponseDto();
+                hashtagDto.id = eh.hashtag.id;
+                hashtagDto.name = eh.hashtag.name;
+                hashtagDto.usageCount = eh.hashtag.usageCount;
+                return hashtagDto;
             });
         }
 

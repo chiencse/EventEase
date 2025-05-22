@@ -4,11 +4,10 @@ import { CreateTrackedEventDto } from '../dto/tracked-event.dto';
 import { TrackedEventResponseDto } from '../dto/tracked-event-response.dto';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { IResponse } from 'src/common/interfaces/response.interface';
-import { AuthGuard } from 'src/common/guards/auth.guard';
 
 @Controller('tracked-events')
 @ApiTags('Tracked Events')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 // @UseGuards(AuthGuard)
 export class TrackedEventController {
     constructor(private readonly trackedEventService: TrackedEventService) {}

@@ -19,13 +19,15 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       disableErrorMessages: false, // Cho phép hiển thị message lỗi (true để ẩn message trong production)
-      whitelist: true,             // Tự động loại bỏ field không khai báo trong DTO
+      whitelist: false,             // Tự động loại bỏ field không khai báo trong DTO
       transform: true,             // Tự động chuyển đổi kiểu dữ liệu (string -> number/date)
     }),
   );
 
   // Global interceptors
-  app.useGlobalInterceptors(new AccessLogInterceptor());
+  app.useGlobalInterceptors(
+    new AccessLogInterceptor()
+  );
 
   // Cho phép gọi API từ các origin khác (CORS)
   app.enableCors({
@@ -36,17 +38,15 @@ async function bootstrap() {
 
   // Cấu hình Swagger (API documentation)
   const config = new DocumentBuilder()
-    .setTitle('NestJS API') // Tiêu đề tài liệu Swagger
-    .setDescription('The NestJS API description') // Mô tả
-    .setVersion('2.0') // Phiên bản API
-
-    // Thêm cấu hình Bearer token (JWT) vào header
+    .setTitle('EventEase API')
+    .setDescription('API Documentation')
+    .setVersion('1.0')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        name: 'JWT-auth',
+        name: 'Authorization',
         in: 'header',
       },
       'JWT-auth', // Tên security để gắn với @ApiBearerAuth('JWT-auth')
