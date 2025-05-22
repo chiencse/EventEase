@@ -1,19 +1,36 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { UserModule } from './user/user.module';
-import { ProductModule } from './product/product.module';
-import dataSource from 'ormconfig';
 import { JwtModule } from '@nestjs/jwt';
 
+import dataSource from 'src/database/ormconfig';
+import { UserModule } from './modules/user/user.module';
+import { EventModule } from './modules/event/event.module';
+import { TrackedEventModule } from './modules/tracked_event/tracked-event.module';
+import { FavouriteEventModule } from './modules/favourite_event/favourite-event.module';
+import { ParticipatedEventModule } from './modules/participated_event/participated-event.module';
+import { S3Service } from './common/s3/s3.service';
+import { AppService } from './app.service';
+import { AuthModule } from './modules/auth/auth.module';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+/**
+ * AppModule là module gốc của toàn bộ ứng dụng NestJS.
+ * Tại đây sẽ cấu hình:
+ * - Biến môi trường
+ * - Kết nối CSDL (TypeORM)
+ * - JWT xác thực
+ * - Module chức năng (ví dụ: EventModule)
+ * - Các provider dùng toàn app (ví dụ: S3Service)
+ */
 @Module({
   imports: [
+    // Load biến môi trường từ file .env, dùng toàn app
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
     }),
+
+    // Kết nối cơ sở dữ liệu qua TypeORM, dùng cấu hình từ ormconfig.ts
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,6 +38,8 @@ import { JwtModule } from '@nestjs/jwt';
         ...dataSource.options,
       }),
     }),
+
+    // Đăng ký JWT toàn ứng dụng (dùng cho xác thực người dùng)
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async () => ({
@@ -29,15 +48,37 @@ import { JwtModule } from '@nestjs/jwt';
       }),
     }),
 
+    // Các module nghiệp vụ
+    AuthModule,
     UserModule,
-    ProductModule,
+    EventModule,
+    TrackedEventModule,
+    FavouriteEventModule,
+    ParticipatedEventModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+
+  // Controller gốc
+  controllers: [],
+
+  // Provider dùng toàn cục (AppService, S3Service, v.v.)
+  providers: [AppService, S3Service],
+
+  // Cho phép export S3Service để dùng ở module khác
+  exports: [S3Service],
 })
-export class AppModule {
+
+/**
+ * AppModule là module gốc của ứng dụng.
+ * Tại đây sẽ cấu hình các module, controller, provider cần thiết cho toàn bộ ứng dụng.
+ */
+export class AppModule implements NestModule {
   constructor(private readonly appService: AppService) {
     console.log('AppModule initialized');
-    // console.log('ENVIRONMENT VARIABLES:', process.env.JWT_SECRET);
+  }
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestContextMiddleware)
+      .forRoutes('*');
   }
 }
