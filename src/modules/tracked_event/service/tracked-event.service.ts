@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -18,12 +18,25 @@ export class TrackedEventService {
 
     /**
      * Tạo mới một sự kiện theo dõi
+     * @param userId - ID của người dùng từ token
      * @param createTrackedEventDto - DTO chứa thông tin tạo sự kiện theo dõi
      * @returns Response chuẩn chứa thông tin sự kiện theo dõi đã tạo
      */
-    async create(createTrackedEventDto: CreateTrackedEventDto): Promise<IResponse<TrackedEventResponseDto | null>> {
-        try{
-            const trackedEvent = this.trackedEventRepository.create(createTrackedEventDto);
+    async create(userId: string, createTrackedEventDto: CreateTrackedEventDto): Promise<IResponse<TrackedEventResponseDto | null>> {
+        try {
+            // Kiểm tra xem đã theo dõi chưa
+            const existingTrack = await this.trackedEventRepository.findOne({
+                where: { userId, eventId: createTrackedEventDto.eventId }
+            });
+
+            if (existingTrack) {
+                return ResponseUtil.error('Bạn đã theo dõi sự kiện này rồi', HttpStatus.BAD_REQUEST);
+            }
+
+            const trackedEvent = this.trackedEventRepository.create({
+                ...createTrackedEventDto,
+                userId
+            });
             const savedTrackedEvent = await this.trackedEventRepository.save(trackedEvent);
             return ResponseUtil.success(TrackedEventMapper.toResponseDto(savedTrackedEvent));
         } catch (error) {
@@ -39,24 +52,25 @@ export class TrackedEventService {
     
     /**
      * Xóa một sự kiện theo dõi
-     * @param id - ID của sự kiện theo dõi cần xóa
+     * @param userId - ID của người dùng từ token
+     * @param eventId - ID của sự kiện cần bỏ theo dõi
      * @returns Response chuẩn chứa kết quả xóa
      */
-    async remove(id: number): Promise<IResponse<{deleted: boolean} | null>> {
-        try{
-            const tracked_event = await this.trackedEventRepository.findOne({
-                where: {id}
+    async remove(userId: string, eventId: string): Promise<IResponse<{deleted: boolean} | null>> {
+        try {
+            const trackedEvent = await this.trackedEventRepository.findOne({
+                where: { userId, eventId }
             });
 
-            if(!tracked_event){
+            if (!trackedEvent) {
                 return ResponseUtil.error(
                     'Không tìm thấy sự kiện theo dõi',
                     HttpStatus.NOT_FOUND
                 );
             }
 
-            await this.trackedEventRepository.delete(id);
-            return ResponseUtil.success({deleted: true});
+            await this.trackedEventRepository.remove(trackedEvent);
+            return ResponseUtil.success({ deleted: true });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
@@ -70,11 +84,11 @@ export class TrackedEventService {
 
     /**
      * Kiểm tra xem người dùng đã theo dõi sự kiện chưa
-     * @param userId - ID của người dùng cần kiểm tra
+     * @param userId - ID của người dùng từ token
      * @param eventId - ID của sự kiện cần kiểm tra
      * @returns Response chuẩn chứa trạng thái theo dõi
      */
-    async isEventTracked(userId: number, eventId: number): Promise<IResponse<{ isTracked: boolean } | null>> {
+    async isEventTracked(userId: string, eventId: string): Promise<IResponse<{ isTracked: boolean } | null>> {
         try {
             const trackedEvent = await this.trackedEventRepository.findOne({
                 where: { userId, eventId }
@@ -100,7 +114,7 @@ export class TrackedEventService {
      * @param eventId - ID của sự kiện cần lấy số lượng người theo dõi
      * @returns Response chuẩn chứa số lượng người theo dõi
      */
-    async getEventTrackersCount(eventId: number): Promise<IResponse<{ count: number } | null>> {
+    async getEventTrackersCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
         try {
             const count = await this.trackedEventRepository.count({
                 where: { eventId }
@@ -123,13 +137,13 @@ export class TrackedEventService {
 
     /**
      * Lấy danh sách sự kiện theo dõi của một người dùng với phân trang
-     * @param userId - ID của người dùng cần lấy danh sách
+     * @param userId - ID của người dùng từ token
      * @param page - Số trang cần lấy (mặc định: 1)
      * @param limit - Số lượng item trên mỗi trang (mặc định: 10)
      * @returns Response chuẩn chứa danh sách sự kiện theo dõi đã phân trang
      */
     async findAllByUserIdPaginated(
-        userId: number,
+        userId: string,
         page: number = 1,
         limit: number = 10
     ): Promise<IResponse<{ data: TrackedEventResponseDto[], total: number, page: number, limit: number } | null>> {

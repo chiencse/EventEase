@@ -8,7 +8,7 @@ import { FavouriteEventResponseDto } from '../dto/favourite-event-response.dto';
 import { FavouriteEventMapper } from '../mappers/favourite-event.mapper';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
-
+import { getUserId } from 'src/common/utils/user.util';
 @Injectable()
 export class FavouriteEventService {
     constructor(
@@ -21,14 +21,17 @@ export class FavouriteEventService {
      * @param createFavouriteEventDto - DTO chứa thông tin tạo sự kiện yêu thích
      * @returns Response chuẩn chứa thông tin sự kiện yêu thích đã tạo
      */
-    async create(createFavouriteEventDto: CreateFavouriteEventDto): Promise<IResponse<FavouriteEventResponseDto | null>> {
+    async create(userId: string, createFavouriteEventDto: CreateFavouriteEventDto): Promise<IResponse<FavouriteEventResponseDto | null>> {
         try {
-            const favouriteEvent = this.favouriteEventRepository.create(createFavouriteEventDto);
+            const favouriteEvent = this.favouriteEventRepository.create({
+                userId,
+                ...createFavouriteEventDto
+            });
             const savedFavouriteEvent = await this.favouriteEventRepository.save(favouriteEvent);
             return ResponseUtil.success(FavouriteEventMapper.toResponseDto(savedFavouriteEvent));
         } catch (error) {
             if (error instanceof Error) {
-                return ResponseUtil.error(
+                return ResponseUtil.error(  
                     `Lỗi khi tạo sự kiện yêu thích: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
@@ -74,7 +77,7 @@ export class FavouriteEventService {
      * @param eventId - ID của sự kiện cần kiểm tra
      * @returns Response chuẩn chứa trạng thái yêu thích
      */
-    async isEventFavourited(userId: number, eventId: number): Promise<IResponse<{ isFavourited: boolean } | null>> {
+    async isEventFavourited(userId: string, eventId: string): Promise<IResponse<{ isFavourited: boolean } | null>> {
         try {
             const favouriteEvent = await this.favouriteEventRepository.findOne({
                 where: { userId, eventId }
@@ -100,7 +103,7 @@ export class FavouriteEventService {
      * @param eventId - ID của sự kiện cần lấy số lượng người yêu thích
      * @returns Response chuẩn chứa số lượng người yêu thích
      */
-    async getEventFavouritesCount(eventId: number): Promise<IResponse<{ count: number } | null>> {
+    async getEventFavouritesCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
         try {
             const count = await this.favouriteEventRepository.count({
                 where: { eventId }
@@ -129,7 +132,7 @@ export class FavouriteEventService {
      * @returns Response chuẩn chứa danh sách sự kiện yêu thích đã phân trang
      */
     async findAllByUserIdPaginated(
-        userId: number,
+        userId: string,
         page: number = 1,
         limit: number = 10
     ): Promise<IResponse<{ data: FavouriteEventResponseDto[], total: number, page: number, limit: number } | null>> {

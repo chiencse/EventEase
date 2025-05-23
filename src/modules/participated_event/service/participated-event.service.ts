@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { ParticipatedEvent } from '../entities/participated-event.entity';
 import { CreateParticipatedEventDto } from '../dto/participated-event.dto';
-import { ParticipatedEventResponseDto } from '../dto/participated-event-response.dto';
+import { EventParticipantResponseDto } from '../dto/event-participant-response.dto';
 import { ParticipatedEventMapper } from '../mappers/participated-event.mapper';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
@@ -21,9 +21,12 @@ export class ParticipatedEventService {
      * @param createParticipatedEventDto - DTO chứa thông tin tạo sự kiện tham gia
      * @returns Response chuẩn chứa thông tin sự kiện tham gia đã tạo
      */
-    async create(createParticipatedEventDto: CreateParticipatedEventDto): Promise<IResponse<ParticipatedEventResponseDto | null>> {
+    async create(userId: string, createParticipatedEventDto: CreateParticipatedEventDto): Promise<IResponse<EventParticipantResponseDto | null>> {
         try {
-            const participatedEvent = this.participatedEventRepository.create(createParticipatedEventDto);
+            const participatedEvent = this.participatedEventRepository.create({
+                userId,
+                ...createParticipatedEventDto
+            });
             const savedParticipatedEvent = await this.participatedEventRepository.save(participatedEvent);
             return ResponseUtil.success(ParticipatedEventMapper.toResponseDto(savedParticipatedEvent));
         } catch (error) {
@@ -74,7 +77,7 @@ export class ParticipatedEventService {
      * @param eventId - ID của sự kiện cần kiểm tra
      * @returns Response chuẩn chứa trạng thái tham gia
      */
-    async isEventParticipated(userId: number, eventId: number): Promise<IResponse<{ isParticipated: boolean } | null>> {
+    async isEventParticipated(userId: string, eventId: string): Promise<IResponse<{ isParticipated: boolean } | null>> {
         try {
             const participatedEvent = await this.participatedEventRepository.findOne({
                 where: { userId, eventId }
@@ -100,7 +103,7 @@ export class ParticipatedEventService {
      * @param eventId - ID của sự kiện cần lấy số lượng người tham gia
      * @returns Response chuẩn chứa số lượng người tham gia
      */
-    async getEventParticipantsCount(eventId: number): Promise<IResponse<{ count: number } | null>> {
+    async getEventParticipantsCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
         try {
             const count = await this.participatedEventRepository.count({
                 where: { eventId }
@@ -129,14 +132,14 @@ export class ParticipatedEventService {
      * @returns Response chuẩn chứa danh sách sự kiện tham gia đã phân trang
      */
     async findAllByUserIdPaginated(
-        userId: number,
+        userId: string,
         page: number = 1,
         limit: number = 10
-    ): Promise<IResponse<{ data: ParticipatedEventResponseDto[], total: number, page: number, limit: number } | null>> {
+    ): Promise<IResponse<{ data: EventParticipantResponseDto[], total: number, page: number, limit: number } | null>> {
         try {
             const [participatedEvents, total] = await this.participatedEventRepository.findAndCount({
                 where: { userId },
-                relations: ['event', 'event.images'],
+                relations: ['event', 'event.images', 'user'],
                 skip: (page - 1) * limit,
                 take: limit,
                 order: { createdAt: 'DESC' }
@@ -144,7 +147,7 @@ export class ParticipatedEventService {
 
             const responseDtos = participatedEvents
                 .map(ParticipatedEventMapper.toResponseDto)
-                .filter((dto): dto is ParticipatedEventResponseDto => dto !== null);
+                .filter((dto): dto is EventParticipantResponseDto => dto !== null);
 
             return ResponseUtil.success(
                 {
@@ -159,6 +162,51 @@ export class ParticipatedEventService {
             if (error instanceof Error) {
                 return ResponseUtil.error(
                     `Lỗi khi lấy danh sách sự kiện tham gia: ${error.message}`,
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Lấy danh sách người tham gia của một sự kiện
+     * @param eventId - ID của sự kiện
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người tham gia đã phân trang
+     */
+    async getEventParticipants(
+        eventId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{ data: EventParticipantResponseDto[], total: number, page: number, limit: number } | null>> {
+        try {
+            const [participants, total] = await this.participatedEventRepository.findAndCount({
+                where: { eventId },
+                relations: ['user', 'event', 'event.images'],
+                skip: (page - 1) * limit,
+                take: limit,
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDtos = participants
+                .map(ParticipatedEventMapper.toResponseDto)
+                .filter((dto): dto is EventParticipantResponseDto => dto !== null);
+
+            return ResponseUtil.success(
+                {
+                    data: responseDtos,
+                    total,
+                    page,
+                    limit
+                },
+                'Lấy danh sách người tham gia thành công'
+            );
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi lấy danh sách người tham gia: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }

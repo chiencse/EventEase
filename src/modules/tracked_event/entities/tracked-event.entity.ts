@@ -8,10 +8,10 @@ export class TrackedEvent extends AuditEntity {
     id: number;
 
     @Column({ name: 'event_id' })
-    eventId: number;
+    eventId: string;
 
     @Column({ name: 'user_id' })
-    userId: number;
+    userId: string;
 
     @ManyToOne(() => Event, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'event_id' })

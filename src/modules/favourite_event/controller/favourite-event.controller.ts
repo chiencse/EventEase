@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Body, Delete, Param, ParseIntPipe, HttpStatus, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Delete, Param, ParseIntPipe, HttpStatus, Query, UseGuards, Req } from '@nestjs/common';
 import { FavouriteEventService } from '../service/favourite-event.service';
 import { CreateFavouriteEventDto } from '../dto/favourite-event.dto';
 import { FavouriteEventResponseDto } from '../dto/favourite-event-response.dto';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { IResponse } from 'src/common/interfaces/response.interface';
+import { request } from 'express';
+import { ResponseUtil } from 'src/common/utils/response.util';
+import { RequestWithUser } from 'src/common/types/request-with-user.interface';
+import { getUserId } from 'src/common/utils/user.util';
 
 @Controller('favourite-events')
 @ApiTags('Favourite Events')
@@ -19,9 +23,11 @@ export class FavouriteEventController {
      */
     @Post()
     async create(
+        @Req() request: RequestWithUser,
         @Body() createFavouriteEventDto: CreateFavouriteEventDto
     ): Promise<IResponse<FavouriteEventResponseDto | null>> {
-        return this.favouriteEventService.create(createFavouriteEventDto);
+        const userId = await getUserId(request);
+        return this.favouriteEventService.create(userId, createFavouriteEventDto);
     }
 
     /**
@@ -44,9 +50,10 @@ export class FavouriteEventController {
      */
     @Get('check')
     async isEventFavourited(
-        @Query('userId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) userId: number,
-        @Query('eventId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) eventId: number
+        @Req() request: RequestWithUser,
+        @Query('eventId') eventId: string
     ): Promise<IResponse<{ isFavourited: boolean } | null>> {
+        const userId = await getUserId(request);
         return this.favouriteEventService.isEventFavourited(userId, eventId);
     }
 
@@ -57,7 +64,7 @@ export class FavouriteEventController {
      */
     @Get('count/:eventId')
     async getEventFavouritesCount(
-        @Param('eventId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) eventId: number
+        @Param('eventId') eventId: string
     ): Promise<IResponse<{ count: number } | null>> {
         return this.favouriteEventService.getEventFavouritesCount(eventId);
     }
@@ -73,10 +80,27 @@ export class FavouriteEventController {
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
     async findAllByUserIdPaginated(
-        @Param('userId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) userId: number,
+        @Param('userId') userId: string,
         @Query('page') page?: number,
         @Query('limit') limit?: number
     ): Promise<IResponse<{ data: FavouriteEventResponseDto[], total: number, page: number, limit: number } | null>> {
+        return this.favouriteEventService.findAllByUserIdPaginated(userId, page, limit);
+    }
+    
+    /**
+     * Lấy danh sách sự kiện yêu thích của người dùng hiện tại
+     * @param request - Request
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách sự kiện yêu thích đã phân trang
+     */
+    @Get('my-favourite')
+    async getMyFavouriteEvents(
+        @Req() request: RequestWithUser,
+        @Query('page') page?: number,
+        @Query('limit') limit?: number
+    ): Promise<IResponse<{ data: FavouriteEventResponseDto[], total: number, page: number, limit: number } | null>> {
+        const userId = await getUserId(request);
         return this.favouriteEventService.findAllByUserIdPaginated(userId, page, limit);
     }
 } 

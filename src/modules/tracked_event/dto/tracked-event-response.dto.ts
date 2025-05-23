@@ -7,10 +7,10 @@ export class TrackedEventResponseDto implements ITrackedEventResponse {
     id: number;
 
     @ApiProperty({ example: 1 })
-    eventId: number;
+    eventId: string;
 
     @ApiProperty({ example: 1 })
-    userId: number;
+    userId: string;
 
     @ApiProperty({ type: EventResponseDto, required: false })
     event: EventResponseDto | null;

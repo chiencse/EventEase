@@ -6,10 +6,10 @@ export class FavouriteEventResponseDto {
     id: number;
 
     @ApiProperty()
-    userId: number;
+    userId: string;
 
     @ApiProperty()
-    eventId: number;
+    eventId: string;
 
     @ApiProperty({ type: EventResponseDto, required: false })
     event: EventResponseDto | null;

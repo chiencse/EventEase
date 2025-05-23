@@ -8,10 +8,10 @@ export class FavouriteEvent extends AuditEntity {
     id: number;
 
     @Column({ name: 'user_id' })
-    userId: number;
+    userId: string;
 
     @Column({ name: 'event_id' })
-    eventId: number;
+    eventId: string;
 
     @ManyToOne(() => Event, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'event_id' })

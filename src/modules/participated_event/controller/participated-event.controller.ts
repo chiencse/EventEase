@@ -1,14 +1,16 @@
-import { Controller, Get, Post, Body, Delete, Param, ParseIntPipe, HttpStatus, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Delete, Param, ParseIntPipe, HttpStatus, Query, UseGuards, Req} from '@nestjs/common';
 import { ParticipatedEventService } from '../service/participated-event.service';
 import { CreateParticipatedEventDto } from '../dto/participated-event.dto';
 import { ParticipatedEventResponseDto } from '../dto/participated-event-response.dto';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { IResponse } from 'src/common/interfaces/response.interface';
-
+import { getUserId} from 'src/common/utils/user.util';
+import { RequestWithUser } from 'src/common/types/request-with-user.interface';
+import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 @Controller('participated-events')
 @ApiTags('Participated Events')
 @ApiBearerAuth('JWT-auth')
-// @UseGuards(AuthGuard)
+@UseGuards(JwtAuthGuard)
 export class ParticipatedEventController {
     constructor(private readonly participatedEventService: ParticipatedEventService) {}
 
@@ -19,9 +21,11 @@ export class ParticipatedEventController {
      */
     @Post()
     async create(
-        @Body() createParticipatedEventDto: CreateParticipatedEventDto
+        @Body() createParticipatedEventDto: CreateParticipatedEventDto,
+        @Req() request: RequestWithUser
     ): Promise<IResponse<ParticipatedEventResponseDto | null>> {
-        return this.participatedEventService.create(createParticipatedEventDto);
+        const userId = await getUserId(request);
+        return this.participatedEventService.create(userId, createParticipatedEventDto);
     }
 
     /**
@@ -31,22 +35,22 @@ export class ParticipatedEventController {
      */
     @Delete(':id')
     async remove(
-        @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: number
+        @Param('id') id: number
     ): Promise<IResponse<{ deleted: boolean } | null>> {
         return this.participatedEventService.remove(id);
     }
 
     /**
      * Kiểm tra xem người dùng đã tham gia sự kiện chưa
-     * @param userId - ID của người dùng
      * @param eventId - ID của sự kiện
      * @returns Trạng thái tham gia
      */
     @Get('check')
     async isEventParticipated(
-        @Query('userId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) userId: number,
-        @Query('eventId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) eventId: number
+        @Req() request: RequestWithUser,
+        @Query('eventId') eventId: string
     ): Promise<IResponse<{ isParticipated: boolean } | null>> {
+        const userId = await getUserId(request);
         return this.participatedEventService.isEventParticipated(userId, eventId);
     }
 
@@ -57,7 +61,7 @@ export class ParticipatedEventController {
      */
     @Get('count/:eventId')
     async getEventParticipantsCount(
-        @Param('eventId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) eventId: number
+        @Param('eventId') eventId: string
     ): Promise<IResponse<{ count: number } | null>> {
         return this.participatedEventService.getEventParticipantsCount(eventId);
     }
@@ -73,10 +77,45 @@ export class ParticipatedEventController {
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
     async findAllByUserIdPaginated(
-        @Param('userId', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) userId: number,
+        @Req() request: RequestWithUser,
         @Query('page') page?: number,
         @Query('limit') limit?: number
     ): Promise<IResponse<{ data: ParticipatedEventResponseDto[], total: number, page: number, limit: number } | null>> {
+        const userId = await getUserId(request);
         return this.participatedEventService.findAllByUserIdPaginated(userId, page, limit);
     }
+
+    /**
+     * Lấy danh sách sự kiện tham gia của người dùng hiện tại
+     * @param request - Request
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách sự kiện tham gia đã phân trang
+     */
+    @Get('my-participated')
+    async getMyParticipated(
+        @Req() request: RequestWithUser,
+        @Query('page') page?: number,
+        @Query('limit') limit?: number
+    ): Promise<IResponse<{ data: ParticipatedEventResponseDto[], total: number, page: number, limit: number } | null>> {  
+        const userId = await getUserId(request);
+        return this.participatedEventService.findAllByUserIdPaginated(userId, page, limit);
+    }
+
+    /**
+     * Lấy danh sách người tham gia của một sự kiện
+     * @param eventId - ID của sự kiện
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người tham gia của sự kiện đã phân trang
+     */
+    @Get('event/:eventId')
+    async getEventParticipants(
+        @Param('eventId') eventId: string,
+        @Query('page') page?: number,
+        @Query('limit') limit?: number
+    ): Promise<IResponse<{ data: ParticipatedEventResponseDto[], total: number, page: number, limit: number } | null>> {
+        return this.participatedEventService.getEventParticipants(eventId, page, limit);
+    }
+
 } 
