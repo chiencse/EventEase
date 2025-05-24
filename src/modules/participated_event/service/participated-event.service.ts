@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { ParticipatedEvent } from '../entities/participated-event.entity';
 import { CreateParticipatedEventDto } from '../dto/participated-event.dto';
-import { EventParticipantResponseDto } from '../dto/event-participant-response.dto';
+import { EventParticipantResponseDto, UserParticipatedEventsResponseDto } from '../dto/event-participant-response.dto';
 import { ParticipatedEventMapper } from '../mappers/participated-event.mapper';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
@@ -17,22 +17,38 @@ export class ParticipatedEventService {
     ) {}
 
     /**
-     * Tạo mới một sự kiện tham gia
-     * @param createParticipatedEventDto - DTO chứa thông tin tạo sự kiện tham gia
-     * @returns Response chuẩn chứa thông tin sự kiện tham gia đã tạo
+     * Đăng ký tham gia sự kiện
+     * @param userId - ID người dùng
+     * @param createParticipatedEventDto - DTO chứa thông tin đăng ký
+     * @returns Thông tin xác nhận đăng ký
      */
     async create(userId: string, createParticipatedEventDto: CreateParticipatedEventDto): Promise<IResponse<EventParticipantResponseDto | null>> {
         try {
-            const participatedEvent = this.participatedEventRepository.create({
-                userId,
-                ...createParticipatedEventDto
+            const existing = await this.participatedEventRepository.findOne({
+                where: { user: { id: userId }, event: { id: createParticipatedEventDto.eventId } }
             });
+
+            if (existing) {
+                return ResponseUtil.error(
+                    'Bạn đã đăng ký tham gia sự kiện này',
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+
+            const participatedEvent = this.participatedEventRepository.create({
+                user: { id: userId },
+                event: { id: createParticipatedEventDto.eventId }
+            });
+
             const savedParticipatedEvent = await this.participatedEventRepository.save(participatedEvent);
-            return ResponseUtil.success(ParticipatedEventMapper.toResponseDto(savedParticipatedEvent));
+            return ResponseUtil.success(
+                ParticipatedEventMapper.toResponseDto(savedParticipatedEvent),
+                'Đăng ký tham gia sự kiện thành công'
+            );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi tạo sự kiện tham gia: ${error.message}`,
+                    `Lỗi khi đăng ký tham gia: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -41,11 +57,11 @@ export class ParticipatedEventService {
     }
 
     /**
-     * Xóa một sự kiện tham gia
-     * @param id - ID của sự kiện tham gia cần xóa
-     * @returns Response chuẩn chứa kết quả xóa
+     * Hủy tham gia sự kiện
+     * @param id - ID của bản ghi tham gia
+     * @returns Kết quả hủy tham gia
      */
-    async remove(id: number): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             const participatedEvent = await this.participatedEventRepository.findOne({
                 where: {id}
@@ -53,17 +69,20 @@ export class ParticipatedEventService {
 
             if(!participatedEvent) {
                 return ResponseUtil.error(
-                    'Không tìm thấy sự kiện tham gia',
+                    'Không tìm thấy thông tin tham gia sự kiện',
                     HttpStatus.NOT_FOUND
                 );
             }
 
             await this.participatedEventRepository.delete(id);
-            return ResponseUtil.success({deleted: true});
+            return ResponseUtil.success(
+                {deleted: true},
+                'Hủy tham gia sự kiện thành công'
+            );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi xóa sự kiện tham gia: ${error.message}`,
+                    `Lỗi khi hủy tham gia: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -72,25 +91,24 @@ export class ParticipatedEventService {
     }
 
     /**
-     * Kiểm tra xem người dùng đã tham gia sự kiện chưa
-     * @param userId - ID của người dùng cần kiểm tra
-     * @param eventId - ID của sự kiện cần kiểm tra
-     * @returns Response chuẩn chứa trạng thái tham gia
+     * Kiểm tra trạng thái tham gia sự kiện
+     * @param userId - ID người dùng
+     * @param eventId - ID sự kiện
+     * @returns Trạng thái tham gia
      */
     async isEventParticipated(userId: string, eventId: string): Promise<IResponse<{ isParticipated: boolean } | null>> {
         try {
             const participatedEvent = await this.participatedEventRepository.findOne({
-                where: { userId, eventId }
+                where: { user: { id: userId }, event: { id: eventId } }
             });
 
             return ResponseUtil.success(
-                { isParticipated: !!participatedEvent },
-                'Kiểm tra trạng thái tham gia thành công'
+                { isParticipated: !!participatedEvent }
             );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi kiểm tra trạng thái tham gia: ${error.message}`,
+                    `Lỗi khi kiểm tra trạng thái: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -99,20 +117,17 @@ export class ParticipatedEventService {
     }
 
     /**
-     * Lấy số lượng người tham gia một sự kiện
-     * @param eventId - ID của sự kiện cần lấy số lượng người tham gia
-     * @returns Response chuẩn chứa số lượng người tham gia
+     * Lấy số lượng người tham gia sự kiện
+     * @param eventId - ID sự kiện
+     * @returns Số lượng người tham gia
      */
     async getEventParticipantsCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
         try {
             const count = await this.participatedEventRepository.count({
-                where: { eventId }
+                where: { event: { id: eventId } }
             });
 
-            return ResponseUtil.success(
-                { count },
-                'Lấy số lượng người tham gia thành công'
-            );
+            return ResponseUtil.success({ count });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
@@ -125,43 +140,46 @@ export class ParticipatedEventService {
     }
 
     /**
-     * Lấy danh sách sự kiện tham gia của một người dùng với phân trang
-     * @param userId - ID của người dùng cần lấy danh sách
-     * @param page - Số trang cần lấy (mặc định: 1)
-     * @param limit - Số lượng item trên mỗi trang (mặc định: 10)
-     * @returns Response chuẩn chứa danh sách sự kiện tham gia đã phân trang
+     * Lấy danh sách sự kiện đã tham gia của người dùng
+     * @param userId - ID người dùng
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách sự kiện đã tham gia
      */
     async findAllByUserIdPaginated(
         userId: string,
         page: number = 1,
         limit: number = 10
-    ): Promise<IResponse<{ data: EventParticipantResponseDto[], total: number, page: number, limit: number } | null>> {
+    ): Promise<IResponse<{ data: UserParticipatedEventsResponseDto[], total: number, page: number, limit: number } | null>> {
         try {
             const [participatedEvents, total] = await this.participatedEventRepository.findAndCount({
-                where: { userId },
+                where: { user: { id: userId } },
                 relations: ['event', 'event.images', 'user'],
                 skip: (page - 1) * limit,
                 take: limit,
                 order: { createdAt: 'DESC' }
             });
 
-            const responseDtos = participatedEvents
-                .map(ParticipatedEventMapper.toResponseDto)
-                .filter((dto): dto is EventParticipantResponseDto => dto !== null);
-
-            return ResponseUtil.success(
-                {
-                    data: responseDtos,
-                    total,
+            const responseDto = ParticipatedEventMapper.toUserEventsDto(participatedEvents);
+            if (!responseDto) {
+                return ResponseUtil.success({
+                    data: [],
+                    total: 0,
                     page,
                     limit
-                },
-                'Lấy danh sách sự kiện tham gia thành công'
-            );
+                });
+            }
+
+            return ResponseUtil.success({
+                data: [responseDto],
+                total,
+                page,
+                limit
+            });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi lấy danh sách sự kiện tham gia: ${error.message}`,
+                    `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -171,10 +189,10 @@ export class ParticipatedEventService {
 
     /**
      * Lấy danh sách người tham gia của một sự kiện
-     * @param eventId - ID của sự kiện
+     * @param eventId - ID sự kiện
      * @param page - Số trang
      * @param limit - Số lượng item trên mỗi trang
-     * @returns Danh sách người tham gia đã phân trang
+     * @returns Danh sách người tham gia
      */
     async getEventParticipants(
         eventId: string,
@@ -183,26 +201,29 @@ export class ParticipatedEventService {
     ): Promise<IResponse<{ data: EventParticipantResponseDto[], total: number, page: number, limit: number } | null>> {
         try {
             const [participants, total] = await this.participatedEventRepository.findAndCount({
-                where: { eventId },
+                where: { event: { id: eventId } },
                 relations: ['user', 'event', 'event.images'],
                 skip: (page - 1) * limit,
                 take: limit,
                 order: { createdAt: 'DESC' }
             });
 
-            const responseDtos = participants
-                .map(ParticipatedEventMapper.toResponseDto)
-                .filter((dto): dto is EventParticipantResponseDto => dto !== null);
-
-            return ResponseUtil.success(
-                {
-                    data: responseDtos,
-                    total,
+            const responseDto = ParticipatedEventMapper.toEventParticipantsDto(participants);
+            if (!responseDto) {
+                return ResponseUtil.success({
+                    data: [],
+                    total: 0,
                     page,
                     limit
-                },
-                'Lấy danh sách người tham gia thành công'
-            );
+                });
+            }
+
+            return ResponseUtil.success({
+                data: [responseDto],
+                total,
+                page,
+                limit
+            });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(

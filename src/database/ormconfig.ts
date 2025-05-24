@@ -14,10 +14,10 @@ export const databaseConfig: DataSourceOptions = {
   logging: true,
   entities: ['dist/**/*.entity.{ts,js}'],
   migrations: ['dist/database/migrations/*.js'],
-  // ssl: {
-  //   rejectUnauthorized: true,
-  //   ca: fs.readFileSync(path.resolve(__dirname, '../../ca.pem')).toString(), // Sử dụng path.resolve
-  // },
+  ssl: {
+    rejectUnauthorized: true,
+    ca: fs.readFileSync(path.resolve(__dirname, '../../ca.pem')).toString(), // Sử dụng path.resolve
+  },
 };
 
 const dataSource = new DataSource(databaseConfig);

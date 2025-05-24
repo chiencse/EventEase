@@ -2,28 +2,19 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class EventParticipantResponseDto {
     @ApiProperty()
-    id: number;
+    id: string;
 
     @ApiProperty()
-    title: string;
-
-    @ApiProperty()
-    startTime: Date;
-
-    @ApiProperty()
-    endTime: Date;
-
-    @ApiProperty()
-    position: string;
-
-    @ApiProperty()
-    participantNumber: number;
-
-    @ApiProperty()
-    imagesMain: string
-
-    @ApiProperty()
-    createBy:string;
+    event: {
+        id: string;
+        title: string;
+        startTime: Date;
+        endTime: Date;
+        position: string;
+        participantNumber: number;
+        imagesMain: string;
+        createdBy: string;
+    };
 
     @ApiProperty({ type: [Object] })
     users: {
@@ -31,6 +22,35 @@ export class EventParticipantResponseDto {
         firstName: string;
         lastName: string;
         avatar: string;
+    }[];
+
+    @ApiProperty()
+    createdAt: Date;
+}
+
+export class UserParticipatedEventsResponseDto {
+    @ApiProperty()
+    id: string;
+
+    @ApiProperty()
+    user: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatar: string;
+    };
+
+    @ApiProperty({ type: [Object] })
+    events: {
+        id: string;
+        title: string;
+        startTime: Date;
+        endTime: Date;
+        position: string;
+        participantNumber: number;
+        imagesMain: string;
+        createdAt: Date;
+        createdBy: string;
     }[];
 
     @ApiProperty()

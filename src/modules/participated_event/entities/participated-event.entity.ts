@@ -5,20 +5,14 @@ import { User } from '../../../modules/user/entities/user.entity';
 
 @Entity('participated_events')
 export class ParticipatedEvent extends AuditEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column()
-    userId: string;
+  @ManyToOne(() => User, { eager: false })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
-    @Column()
-    eventId: string;
-
-    @ManyToOne(() => Event, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'event_id' })
-    event: Event;
-
-    @ManyToOne(() => User)
-    @JoinColumn({ name: 'userId' })
-    user: User;
-} 
+  @ManyToOne(() => Event, { onDelete: 'CASCADE', eager: false })
+  @JoinColumn({ name: 'event_id' })
+  event: Event;
+}
