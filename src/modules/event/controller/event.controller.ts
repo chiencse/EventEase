@@ -84,7 +84,7 @@ export class EventController {
     @ApiResponse({ status: 404, description: 'Không tìm thấy sự kiện' })
     @ApiResponse({ status: 401, description: 'Không có quyền truy cập' })
     async findOne(
-        @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+        @Param('id') id: string,
     ): Promise<IResponse<EventResponseDto | null>> {
         return this.eventService.findOne(id);
     }
