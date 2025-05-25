@@ -1,23 +1,27 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, HttpStatus, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { S3Service } from 'src/common/s3/s3.service';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/request/create-user.dto';
+import { UpdatePasswordDto } from '../dto/request/update-password.dto';
+import { UserAvatarDto } from '../dto/request/user-avatar.dto';
 import { UserResponseDto } from '../dto/response/user-response.dto';
 import { UserMapper } from '../mappers/user.mapper';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
-import * as bcrypt from 'bcrypt';
 import { Logger } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
     private readonly SALT_ROUNDS = 10;
     private readonly logger = new Logger(UserService.name);
-
+    
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
+        private readonly s3Service: S3Service,
     ) {}
 
     /**
@@ -123,6 +127,83 @@ export class UserService {
         return ResponseUtil.success(
             UserMapper.toResponseDto(updatedUser),
             'Cập nhật thông tin người dùng thành công'
+        );
+    }
+
+    /**
+     * Cập nhật mật khẩu người dùng
+     * @param id ID của người dùng
+     * @param newPasswordData Dữ liệu chứa mật khẩu mới
+     * @returns Response thông báo cập nhật thành công
+     */
+    async updatePassword(id: string, newPasswordData: UpdatePasswordDto): Promise<IResponse<{ updated: boolean } | null>> {
+        try {
+            const user = await this.findUserById(id);
+            // Kiểm tra mật khẩu cũ (nếu có)
+            if (newPasswordData.oldPassword) {
+                this.logger.debug(`Updating password for user ID: ${id} with old password provided`);
+                const isMatch = await bcrypt.compare(newPasswordData.oldPassword.trim(), user.password);
+                this.logger.debug(`Password match result: ${isMatch}`);
+                if (!isMatch) {
+                    throw new ConflictException('Mật khẩu cũ không đúng');
+                }
+            }
+            // Kiểm tra mật khẩu mới và xác nhận mật khẩu
+            if (newPasswordData.newPassword !== newPasswordData.confirmPassword) {
+                throw new ConflictException('Mật khẩu xác nhận không khớp');
+            }
+            // Hash mật khẩu mới
+            const newPassword = newPasswordData.newPassword.trim();
+            const hashedPassword = await this.hashPassword(newPassword);
+
+            Object.assign(user, { password: hashedPassword });
+            await this.userRepository.save(user);
+             
+            return ResponseUtil.success(
+                { updated: true },
+                'Cập nhật mật khẩu thành công'
+            );
+        } catch (error) { 
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi cập nhật mật khẩu cho người dùng: ${error.message}`,
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
+
+     /**
+     * Cập nhật mật khẩu người dùng
+     * @param id ID của người dùng
+     * @param newAvatar Ảnh đại diện mới của người dùng
+     * @returns Response thông báo cập nhật thành công
+     */
+    async updateAvatar(id: string, newAvatar: UserAvatarDto): Promise<IResponse<UserResponseDto>> {
+        this.logger.debug(`Updating avatar is loading`);
+        const user = await this.findUserById(id);
+        
+        // Kiểm tra ảnh cũ để xóa nếu có
+        if (user.avatar !== null) {
+            this.logger.debug(`Deleting old avatar for user ID: ${id}`);
+            const oldUrl = user.avatar;
+            await this.s3Service.deleteFile(oldUrl);
+        }
+        // Lưu ảnh mới lên S3
+        this.logger.debug(`Uploading new avatar for user ID: ${id}`);
+        this.logger.debug(`service upload: ${this.s3Service}`);
+        const newUrl = await this.s3Service.uploadFile(newAvatar.avatar, 'avatar');
+        if (!newUrl) {
+            throw new BadRequestException('Không thể cập nhật ảnh đại diện');
+        }
+        user.avatar = newUrl;
+        this.logger.debug(`New avatar URL: ${newUrl}`);
+        const updatedUser = await this.userRepository.save(user);
+        
+        return ResponseUtil.success(
+            UserMapper.toResponseDto(updatedUser),
+            `Cập nhật ảnh đại diện cho người dùng ${user.lastName} thành công`
         );
     }
 
