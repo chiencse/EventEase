@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ImageInfoDto } from './image-info-response.dto';
 import { Exclude, Expose } from 'class-transformer';
+
 
 @Exclude()
 export class UserResponseDto {
@@ -31,6 +33,10 @@ export class UserResponseDto {
     @ApiProperty({ example: '0987654321', required: false })
     phoneNumber?: string;
 
+    @Expose()
+    @ApiProperty({ type: ImageInfoDto, required: false })
+    avatar?: ImageInfoDto;
+        
     @Expose()
     @ApiProperty({ example: 'nguyenvana' })
     username: string;
