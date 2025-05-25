@@ -113,16 +113,7 @@ export class AuthService implements OnModuleInit {
             // Thu hồi refresh token cũ
             await this.revokeToken(refreshToken, 'refresh');
 
-            return {
-                ...tokens,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    avatar: user.avatar,
-                },
-            };
+            return { ...tokens };
         } catch (error) {
             if (error instanceof UnauthorizedException) {
                 throw error;

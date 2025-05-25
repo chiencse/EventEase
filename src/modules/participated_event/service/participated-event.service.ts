@@ -234,4 +234,39 @@ export class ParticipatedEventService {
             throw error;
         }
     }
+
+    /**
+     * Lấy danh sách sự kiện đã tham gia của người dùng (không phân trang)
+     * @param userId - ID người dùng
+     * @returns Danh sách sự kiện đã tham gia
+     */
+    async findAllByUserId(
+        userId: string
+    ): Promise<IResponse<UserParticipatedEventsResponseDto[]>> {
+        try {
+            const participatedEvents = await this.participatedEventRepository.find({
+                where: { user: { id: userId } },
+                relations: ['event', 'event.images', 'user'],
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto = ParticipatedEventMapper.toUserEventsDto(participatedEvents);
+            if (!responseDto) {
+                return ResponseUtil.success([]);
+            }
+
+            return ResponseUtil.success([responseDto]);
+        } catch (error) {
+            if (error instanceof Error) {
+                return {
+                    status: false,
+                    code: HttpStatus.INTERNAL_SERVER_ERROR,
+                    timestamp: new Date().toISOString(),
+                    message: `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    data: []
+                };
+            }
+            throw error;
+        }
+    }
 } 

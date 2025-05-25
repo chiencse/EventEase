@@ -121,6 +121,7 @@ export class TrackedEventMapper {
             .filter(te => te.event)
             .map(te => ({
                 id: te.id,
+                eventId: te.event.id,
                 title: te.event.title,
                 startTime: te.event.startTime,
                 endTime: te.event.endTime,

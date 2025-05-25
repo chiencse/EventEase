@@ -258,4 +258,39 @@ export class FavouriteEventService {
             throw error;
         }
     }
+
+    /**
+     * Lấy danh sách sự kiện yêu thích của người dùng (không phân trang)
+     * @param userId - ID người dùng
+     * @returns Danh sách sự kiện yêu thích
+     */
+    async findAllByUserId(
+        userId: string
+    ): Promise<IResponse<UserFavouriteEventsResponseDto[]>> {
+        try {
+            const favouriteEvents = await this.favouriteEventRepository.find({
+                where: { user: { id: userId } },
+                relations: ['event', 'event.images', 'user'],
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto = FavouriteEventMapper.toUserEventsDto(favouriteEvents);
+            if (!responseDto) {
+                return ResponseUtil.success([]);
+            }
+
+            return ResponseUtil.success([responseDto]);
+        } catch (error) {
+            if (error instanceof Error) {
+                return {
+                    status: false,
+                    code: HttpStatus.INTERNAL_SERVER_ERROR,
+                    timestamp: new Date().toISOString(),
+                    message: `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    data: []
+                };
+            }
+            throw error;
+        }
+    }
 } 
