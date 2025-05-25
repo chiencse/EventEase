@@ -122,19 +122,7 @@ export class FavouriteEventController {
     @Get('my-events')
     @ApiOperation({
         summary: 'Lấy danh sách sự kiện yêu thích',
-        description: 'Lấy danh sách các sự kiện mà người dùng hiện tại đã thêm vào danh sách yêu thích, có phân trang.'
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        type: Number,
-        description: 'Số trang (mặc định: 1)'
-    })
-    @ApiQuery({
-        name: 'limit',
-        required: false,
-        type: Number,
-        description: 'Số lượng item trên mỗi trang (mặc định: 10)'
+        description: 'Lấy danh sách các sự kiện mà người dùng hiện tại đã thêm vào danh sách yêu thích'
     })
     @ApiResponse({
         status: 200,
@@ -142,12 +130,10 @@ export class FavouriteEventController {
         type: UserFavouriteEventsResponseDto
     })
     async getMyFavouriteEvents(
-        @Req() request: RequestWithUser,
-        @Query('page') page?: number,
-        @Query('limit') limit?: number
-    ): Promise<IResponse<{ events: UserFavouriteEventsResponseDto[], total: number, page: number, limit: number } | null>> {
+        @Req() request: RequestWithUser
+    ): Promise<IResponse<UserFavouriteEventsResponseDto[]>> {
         const userId = await getUserId(request);
-        return this.favouriteEventService.findAllByUserIdPaginated(userId, page, limit);
+        return this.favouriteEventService.findAllByUserId(userId);
     }
 
     @Get('event/:eventId/favourites')

@@ -144,26 +144,12 @@ export class ParticipatedEventController {
     /**
      * Lấy danh sách sự kiện đã tham gia của người dùng hiện tại
      * @param request - Request chứa thông tin người dùng
-     * @param page - Số trang
-     * @param limit - Số lượng item trên mỗi trang
      * @returns Danh sách sự kiện đã tham gia
      */
     @Get('my-events')
     @ApiOperation({
         summary: 'Lấy danh sách sự kiện đã tham gia',
-        description: 'Lấy danh sách các sự kiện mà người dùng hiện tại đã đăng ký tham gia, có phân trang.'
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        type: Number,
-        description: 'Số trang (mặc định: 1)'
-    })
-    @ApiQuery({
-        name: 'limit',
-        required: false,
-        type: Number,
-        description: 'Số lượng item trên mỗi trang (mặc định: 10)'
+        description: 'Lấy danh sách các sự kiện mà người dùng hiện tại đã đăng ký tham gia'
     })
     @ApiResponse({
         status: 200,
@@ -171,12 +157,10 @@ export class ParticipatedEventController {
         type: UserParticipatedEventsResponseDto
     })
     async getMyParticipatedEvents(
-        @Req() request: RequestWithUser,
-        @Query('page') page?: number,
-        @Query('limit') limit?: number
-    ): Promise<IResponse<{ data: UserParticipatedEventsResponseDto[], total: number, page: number, limit: number } | null>> {
+        @Req() request: RequestWithUser
+    ): Promise<IResponse<UserParticipatedEventsResponseDto[]>> {
         const userId = await getUserId(request);
-        return this.participatedEventService.findAllByUserIdPaginated(userId, page, limit);
+        return this.participatedEventService.findAllByUserId(userId);
     }
 
     /**

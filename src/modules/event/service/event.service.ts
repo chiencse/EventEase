@@ -481,6 +481,77 @@ export class EventService {
             throw error;
         }
     }
+
+    async findMyEvents(
+        userId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{
+        items: EventResponseDto[];
+        meta: {
+            totalItems: number;
+            itemCount: number;
+            itemsPerPage: number;
+            totalPages: number;
+            currentPage: number;
+        };
+    }>> {
+        try {
+            const queryBuilder = this.eventRepository
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.images', 'image', 'image.isMain = :isMain', { isMain: true })
+                .leftJoinAndSelect('event.eventHashtags', 'eventHashtag')
+                .leftJoinAndSelect('eventHashtag.hashtag', 'hashtag')
+                .where('event.createdBy = :userId', { userId })
+                .orderBy('event.startTime', 'ASC');
+
+            const totalItems = await queryBuilder.getCount();
+            const skip = (page - 1) * limit;
+
+            const events = await queryBuilder
+                .skip(skip)
+                .take(limit)
+                .getMany();
+
+            const eventDtos = events
+                .map(event => EventMapper.toResponseDto(event))
+                .filter((dto): dto is EventResponseDto => dto !== null);
+
+            const totalPages = Math.ceil(totalItems / limit);
+            const itemCount = eventDtos.length;
+
+            return ResponseUtil.success({
+                items: eventDtos,
+                meta: {
+                    totalItems,
+                    itemCount,
+                    itemsPerPage: limit,
+                    totalPages,
+                    currentPage: page,
+                },
+            }, 'Lấy danh sách sự kiện thành công');
+        } catch (error) {
+            if (error instanceof Error) {
+                return {
+                    data: {
+                        items: [],
+                        meta: {
+                            totalItems: 0,
+                            itemCount: 0,
+                            itemsPerPage: limit,
+                            totalPages: 0,
+                            currentPage: page
+                        }
+                    },
+                    message: `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    status: false,
+                    code: HttpStatus.INTERNAL_SERVER_ERROR,
+                    timestamp: new Date().toISOString()
+                };
+            }
+            throw error;
+        }
+    }
 }
 
 

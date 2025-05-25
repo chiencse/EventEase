@@ -24,7 +24,8 @@ import { IResponse } from 'src/common/interfaces/response.interface';
 import { EventResponseDto } from '../dto/response/event-response.dto';
 import { IEvent } from '../interfaces/event.interface';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { Request } from 'express';
+import { RequestWithUser } from 'src/common/types/request-with-user.interface';
+import { getUserId } from 'src/common/utils/user.util';
 
 @Controller('events')
 @ApiTags('Events')
@@ -73,9 +74,51 @@ export class EventController {
     // }
 
     /**
-     * Lấy thông tin chi tiết một sự kiện
+     * Lấy danh sách sự kiện của người dùng hiện tại
+     * @param request - Request với thông tin người dùng
+     * @param page - Số trang (mặc định: 1)
+     * @param limit - Số lượng sự kiện mỗi trang (mặc định: 10)
+     * @returns Danh sách sự kiện và thông tin phân trang
+     */
+    @Get('my-events')
+    @ApiOperation({ summary: 'Lấy danh sách sự kiện của người dùng hiện tại' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Số trang (mặc định: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số lượng sự kiện mỗi trang (mặc định: 10)' })
+    @ApiResponse({ status: 200, description: 'Lấy danh sách sự kiện thành công' })
+    @ApiResponse({ status: 401, description: 'Không có quyền truy cập' })
+    async findMyEvents(
+        @Req() request: RequestWithUser,
+        @Query('page') page: string = '1',
+        @Query('limit') limit: string = '10'
+    ): Promise<IResponse<{
+        items: EventResponseDto[];
+        meta: {
+            totalItems: number;
+            itemCount: number;
+            itemsPerPage: number;
+            totalPages: number;
+            currentPage: number;
+        };
+    }>> {
+        const userId = await getUserId(request);
+        const parsedPage = isNaN(Number(page)) ? 1 : Number(page);
+        const parsedLimit = isNaN(Number(limit)) ? 10 : Number(limit);
+
+        // Thêm xác thực để đảm bảo giá trị hợp lệ
+        if (parsedPage < 1) throw new BadRequestException('Số trang phải lớn hơn 0');
+        if (parsedLimit < 1) throw new BadRequestException('Số lượng sự kiện mỗi trang phải lớn hơn 0');
+
+        return this.eventService.findMyEvents(
+            userId,
+            parsedPage,
+            parsedLimit
+        );
+    }
+
+    /**
+     * Lấy thông tin chi tiết sự kiện
      * @param id - ID của sự kiện
-     * @returns Thông tin chi tiết sự kiện
+     * @returns Thông tin sự kiện
      */
     @Get(':id')
     @ApiOperation({ summary: 'Lấy thông tin chi tiết sự kiện' })
@@ -106,7 +149,7 @@ export class EventController {
     @ApiResponse({ status: 401, description: 'Không có quyền truy cập' })
     @UseInterceptors(FilesInterceptor('images'))
     async update(
-        @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+        @Param('id') id: string,
         @Body() updateEventDto: UpdateEventDto,
         @UploadedFiles() files: any[],
     ): Promise<IResponse<EventResponseDto | null>> {
@@ -151,7 +194,7 @@ export class EventController {
     @ApiResponse({ status: 404, description: 'Không tìm thấy sự kiện' })
     @ApiResponse({ status: 401, description: 'Không có quyền truy cập' })
     async remove(
-        @Param('id', new ParseIntPipe({ errorHttpStatusCode: HttpStatus.BAD_REQUEST })) id: string,
+        @Param('id') id: string,
     ): Promise<IResponse<{ deleted: boolean } | null>> {
         return this.eventService.remove(id);
     }
