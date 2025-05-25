@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { FavouriteEvent } from '../entities/favourite-event.entity';
 import { CreateFavouriteEventDto } from '../dto/favourite-event.dto';
-import { FavouriteEventResponseDto } from '../dto/favourite-event-response.dto';
+import { EventFavouriteResponseDto, UserFavouriteEventsResponseDto } from '../dto/favourite-event-response.dto';
 import { FavouriteEventMapper } from '../mappers/favourite-event.mapper';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
@@ -17,32 +17,75 @@ export class FavouriteEventService {
     ) {}
 
     /**
-     * Tạo mới một sự kiện yêu thích
-     * @param createFavouriteEventDto - DTO chứa thông tin tạo sự kiện yêu thích
-     * @returns Response chuẩn chứa thông tin sự kiện yêu thích đã tạo
+     * Thêm sự kiện vào danh sách yêu thích
+     * @param userId - ID người dùng
+     * @param createFavouriteEventDto - DTO chứa thông tin sự kiện
+     * @returns Thông tin xác nhận yêu thích
      */
-    async create(createFavouriteEventDto: CreateFavouriteEventDto): Promise<IResponse<FavouriteEventResponseDto | null>> {
+    async create( userId: string, createFavouriteEventDto: CreateFavouriteEventDto ): Promise<IResponse<EventFavouriteResponseDto | null>> {
         try {
-            const favouriteEvent = this.favouriteEventRepository.create(createFavouriteEventDto);
-            const savedFavouriteEvent = await this.favouriteEventRepository.save(favouriteEvent);
-            return ResponseUtil.success(FavouriteEventMapper.toResponseDto(savedFavouriteEvent));
-        } catch (error) {
-            if (error instanceof Error) {
-                return ResponseUtil.error(
-                    `Lỗi khi tạo sự kiện yêu thích: ${error.message}`,
-                    HttpStatus.INTERNAL_SERVER_ERROR
-                );
+          const { eventId } = createFavouriteEventDto;
+      
+          // Kiểm tra sự kiện đã được yêu thích chưa
+          const isExist = await this.favouriteEventRepository.findOne({
+            where: {
+              user: { id: userId },
+              event: { id: eventId }
             }
-            throw error;
+          });
+      
+          if (isExist) {
+            return ResponseUtil.error(
+              'Bạn đã thêm sự kiện này vào danh sách yêu thích',
+              HttpStatus.BAD_REQUEST
+            );
+          }
+      
+          // Tạo đối tượng yêu thích
+          const newFavourite = this.favouriteEventRepository.create({
+            user: { id: userId },
+            event: { id: eventId }
+          });
+      
+          // Lưu vào DB
+          const saved = await this.favouriteEventRepository.save(newFavourite);
+      
+          // Load lại đầy đủ thông tin user và event kèm images (tránh trả về thiếu field)
+          const fullData = await this.favouriteEventRepository.findOne({
+            where: { id: saved.id },
+            relations: ['user', 'event', 'event.images']
+          });
+      
+          if (!fullData) {
+            return ResponseUtil.error(
+              'Không thể tải thông tin yêu thích sau khi lưu',
+              HttpStatus.INTERNAL_SERVER_ERROR
+            );
+          }
+      
+          const responseDto = FavouriteEventMapper.toResponseDto(fullData);
+      
+          return ResponseUtil.success(
+            responseDto,
+            'Thêm vào danh sách yêu thích thành công'
+          );
+        } catch (error) {
+          return ResponseUtil.error(
+            `Lỗi khi thêm vào danh sách yêu thích: ${
+              error instanceof Error ? error.message : 'Không xác định'
+            }`,
+            HttpStatus.INTERNAL_SERVER_ERROR
+          );
         }
-    }
+      }
+      
 
     /**
-     * Xóa một sự kiện yêu thích
-     * @param id - ID của sự kiện yêu thích cần xóa
-     * @returns Response chuẩn chứa kết quả xóa
+     * Xóa sự kiện khỏi danh sách yêu thích
+     * @param id - ID của bản ghi yêu thích
+     * @returns Kết quả xóa
      */
-    async remove(id: number): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             const favouriteEvent = await this.favouriteEventRepository.findOne({
                 where: {id}
@@ -50,17 +93,20 @@ export class FavouriteEventService {
 
             if(!favouriteEvent) {
                 return ResponseUtil.error(
-                    'Không tìm thấy sự kiện yêu thích',
+                    'Không tìm thấy thông tin yêu thích sự kiện',
                     HttpStatus.NOT_FOUND
                 );
             }
 
             await this.favouriteEventRepository.delete(id);
-            return ResponseUtil.success({deleted: true});
+            return ResponseUtil.success(
+                {deleted: true},
+                'Xóa khỏi danh sách yêu thích thành công'
+            );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi xóa sự kiện yêu thích: ${error.message}`,
+                    `Lỗi khi xóa khỏi danh sách yêu thích: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -69,25 +115,24 @@ export class FavouriteEventService {
     }
 
     /**
-     * Kiểm tra xem người dùng đã yêu thích sự kiện chưa
-     * @param userId - ID của người dùng cần kiểm tra
-     * @param eventId - ID của sự kiện cần kiểm tra
-     * @returns Response chuẩn chứa trạng thái yêu thích
+     * Kiểm tra trạng thái yêu thích sự kiện
+     * @param userId - ID người dùng
+     * @param eventId - ID sự kiện
+     * @returns Trạng thái yêu thích
      */
-    async isEventFavourited(userId: number, eventId: number): Promise<IResponse<{ isFavourited: boolean } | null>> {
+    async isEventFavourited(userId: string, eventId: string): Promise<IResponse<{ isFavourited: boolean } | null>> {
         try {
             const favouriteEvent = await this.favouriteEventRepository.findOne({
-                where: { userId, eventId }
+                where: { user: { id: userId }, event: { id: eventId } }
             });
 
             return ResponseUtil.success(
-                { isFavourited: !!favouriteEvent },
-                'Kiểm tra trạng thái yêu thích thành công'
+                { isFavourited: !!favouriteEvent }
             );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi kiểm tra trạng thái yêu thích: ${error.message}`,
+                    `Lỗi khi kiểm tra trạng thái: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -96,20 +141,17 @@ export class FavouriteEventService {
     }
 
     /**
-     * Lấy số lượng người yêu thích một sự kiện
-     * @param eventId - ID của sự kiện cần lấy số lượng người yêu thích
-     * @returns Response chuẩn chứa số lượng người yêu thích
+     * Lấy số lượng người yêu thích sự kiện
+     * @param eventId - ID sự kiện
+     * @returns Số lượng người yêu thích
      */
-    async getEventFavouritesCount(eventId: number): Promise<IResponse<{ count: number } | null>> {
+    async getEventFavouritesCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
         try {
             const count = await this.favouriteEventRepository.count({
-                where: { eventId }
+                where: { event: { id: eventId } }
             });
 
-            return ResponseUtil.success(
-                { count },
-                'Lấy số lượng người yêu thích thành công'
-            );
+            return ResponseUtil.success({ count });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
@@ -122,43 +164,94 @@ export class FavouriteEventService {
     }
 
     /**
-     * Lấy danh sách sự kiện yêu thích của một người dùng với phân trang
-     * @param userId - ID của người dùng cần lấy danh sách
-     * @param page - Số trang cần lấy (mặc định: 1)
-     * @param limit - Số lượng item trên mỗi trang (mặc định: 10)
-     * @returns Response chuẩn chứa danh sách sự kiện yêu thích đã phân trang
+     * Lấy danh sách sự kiện yêu thích của người dùng
+     * @param userId - ID người dùng
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách sự kiện yêu thích
      */
     async findAllByUserIdPaginated(
-        userId: number,
+        userId: string,
         page: number = 1,
         limit: number = 10
-    ): Promise<IResponse<{ data: FavouriteEventResponseDto[], total: number, page: number, limit: number } | null>> {
+    ): Promise<IResponse<{ events: UserFavouriteEventsResponseDto[], total: number, page: number, limit: number } | null>> {
         try {
             const [favouriteEvents, total] = await this.favouriteEventRepository.findAndCount({
-                where: { userId },
-                relations: ['event', 'event.images'],
+                where: { user: { id: userId } },
+                relations: ['event', 'event.images', 'user'],
                 skip: (page - 1) * limit,
                 take: limit,
                 order: { createdAt: 'DESC' }
             });
 
-            const responseDtos = favouriteEvents
-                .map(FavouriteEventMapper.toResponseDto)
-                .filter((dto): dto is FavouriteEventResponseDto => dto !== null);
-
-            return ResponseUtil.success(
-                {
-                    data: responseDtos,
-                    total,
+            const responseDto = FavouriteEventMapper.toUserEventsDto(favouriteEvents);
+            if (!responseDto) {
+                return ResponseUtil.success({
+                    events: [],
+                    total: 0,
                     page,
                     limit
-                },
-                'Lấy danh sách sự kiện yêu thích thành công'
-            );
+                });
+            }
+
+            return ResponseUtil.success({
+                events: [responseDto],
+                total,
+                page,
+                limit
+            });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi lấy danh sách sự kiện yêu thích: ${error.message}`,
+                    `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Lấy danh sách người yêu thích của một sự kiện
+     * @param eventId - ID sự kiện
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người yêu thích
+     */
+    async getEventFavourites(
+        eventId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{ data: EventFavouriteResponseDto[], total: number, page: number, limit: number } | null>> {
+        try {
+            const [favourites, total] = await this.favouriteEventRepository.findAndCount({
+                where: { event: { id: eventId } },
+                relations: ['user', 'event', 'event.images'],
+                skip: (page - 1) * limit,
+                take: limit,
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto = FavouriteEventMapper.toEventFavouritesDto(favourites);
+            if (!responseDto) {
+                return ResponseUtil.success({
+                    data: [],
+                    total: 0,
+                    page,
+                    limit
+                });
+            }
+
+            return ResponseUtil.success({
+                data: [responseDto],
+                total,
+                page,
+                limit
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi lấy danh sách người yêu thích: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }

@@ -411,6 +411,7 @@ export class EventService {
         };
     }>> {
         try {
+            console.log("Incoming limit:", limit);
             // Tạo query builder
             const queryBuilder = this.eventRepository
                 .createQueryBuilder('event')
@@ -420,18 +421,24 @@ export class EventService {
 
             // Thêm điều kiện tìm kiếm nếu có
             if (search) {
-                queryBuilder.where('event.title ILIKE :search', { search: `%${search}%` });
+                queryBuilder.where(
+                    '(event.title ILIKE :search OR event.description ILIKE :search OR event.position ILIKE :search OR hashtag.name ILIKE :search)',
+                    { search: `%${search}%` }
+                );
             }
+
+            // Lấy tổng số items trước
+            const totalItems = await queryBuilder.getCount();
 
             // Tính toán offset
             const skip = (page - 1) * limit;
 
-            // Lấy danh sách sự kiện với phân trang và tổng số
-            const [events, totalItems] = await queryBuilder
+            // Lấy danh sách sự kiện với phân trang
+            const events = await queryBuilder
                 .skip(skip)
                 .take(limit)
                 .orderBy('event.createdAt', 'DESC')
-                .getManyAndCount();
+                .getMany();
 
             // Chuyển đổi sang DTO
             const eventDtos = events
@@ -468,7 +475,6 @@ export class EventService {
                     message: `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
                     status: false,
                     code: HttpStatus.INTERNAL_SERVER_ERROR,
-                    path: '/events',
                     timestamp: new Date().toISOString()
                 };
             }

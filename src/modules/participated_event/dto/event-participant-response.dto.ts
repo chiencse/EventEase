@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class EventTrackedResponseDto {
+export class EventParticipantResponseDto {
     @ApiProperty()
     id: string;
 
@@ -28,7 +28,7 @@ export class EventTrackedResponseDto {
     createdAt: Date;
 }
 
-export class UserTrackedEventsResponseDto {
+export class UserParticipatedEventsResponseDto {
     @ApiProperty()
     id: string;
 
