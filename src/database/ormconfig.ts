@@ -1,6 +1,6 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import 'dotenv/config';
-import * as fs from 'fs'; 
+import * as fs from 'fs';
 import * as path from 'path';
 
 export const databaseConfig: DataSourceOptions = {
