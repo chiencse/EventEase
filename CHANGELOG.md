@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.17](https://github.com/chiencse/EventEase/compare/v0.0.16...v0.0.17) (2025-05-25)
+
+
+### Features
+
+* **user:** Add change password and change avatar to user ([1deea35](https://github.com/chiencse/EventEase/commit/1deea3500321e17628cd978aa94e11447270d86e))
+
 ### [0.0.16](https://github.com/chiencse/EventEase/compare/v0.0.15...v0.0.16) (2025-05-25)
 
 
