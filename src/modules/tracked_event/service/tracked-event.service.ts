@@ -1,10 +1,10 @@
-import { Injectable, HttpStatus, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { TrackedEvent } from '../entities/tracked-event.entity';
 import { CreateTrackedEventDto } from '../dto/tracked-event.dto';
-import { TrackedEventResponseDto } from '../dto/tracked-event-response.dto';
+import { EventTrackedResponseDto, UserTrackedEventsResponseDto } from '../dto/tracked-event-response.dto';
 import { TrackedEventMapper } from '../mappers/tracked-event.mapper';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
@@ -17,64 +17,95 @@ export class TrackedEventService {
     ) {}
 
     /**
-     * Tạo mới một sự kiện theo dõi
-     * @param userId - ID của người dùng từ token
-     * @param createTrackedEventDto - DTO chứa thông tin tạo sự kiện theo dõi
-     * @returns Response chuẩn chứa thông tin sự kiện theo dõi đã tạo
+     * Thêm sự kiện vào danh sách theo dõi
+     * @param userId - ID người dùng
+     * @param createTrackedEventDto - DTO chứa thông tin sự kiện
+     * @returns Thông tin xác nhận theo dõi
      */
-    async create(userId: string, createTrackedEventDto: CreateTrackedEventDto): Promise<IResponse<TrackedEventResponseDto | null>> {
+    async create(userId: string, createTrackedEventDto: CreateTrackedEventDto): Promise<IResponse<EventTrackedResponseDto | null>> {
         try {
-            // Kiểm tra xem đã theo dõi chưa
-            const existingTrack = await this.trackedEventRepository.findOne({
-                where: { userId, eventId: createTrackedEventDto.eventId }
+            const { eventId } = createTrackedEventDto;
+       
+            // Kiểm tra sự kiện đã được theo dõi chưa
+            const isExist = await this.trackedEventRepository.findOne({
+                where: {
+                    user: { id: userId },
+                    event: { id: eventId }
+                }
             });
-
-            if (existingTrack) {
-                return ResponseUtil.error('Bạn đã theo dõi sự kiện này rồi', HttpStatus.BAD_REQUEST);
-            }
-
-            const trackedEvent = this.trackedEventRepository.create({
-                ...createTrackedEventDto,
-                userId
-            });
-            const savedTrackedEvent = await this.trackedEventRepository.save(trackedEvent);
-            return ResponseUtil.success(TrackedEventMapper.toResponseDto(savedTrackedEvent));
-        } catch (error) {
-            if (error instanceof Error) {
+        
+            if (isExist) {
                 return ResponseUtil.error(
-                    `Lỗi khi tạo sự kiện theo dõi: ${error.message}`,
+                    'Bạn đã theo dõi sự kiện này rồi',
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+        
+            // Tạo đối tượng theo dõi
+            const newTracked = this.trackedEventRepository.create({
+                user: { id: userId },
+                event: { id: eventId }
+            });
+        
+            // Lưu vào DB
+            const saved = await this.trackedEventRepository.save(newTracked);
+        
+            // Load lại đầy đủ thông tin user và event kèm images (tránh trả về thiếu field)
+            const fullData = await this.trackedEventRepository.findOne({
+                where: { id: saved.id },
+                relations: ['user', 'event', 'event.images']
+            });
+        
+            if (!fullData) {
+                return ResponseUtil.error(
+                    'Không thể tải thông tin theo dõi sau khi lưu',
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
-            throw error;
+       
+            const responseDto = TrackedEventMapper.toResponseDto(fullData);
+        
+            return ResponseUtil.success(
+                responseDto,
+                'Thêm vào danh sách theo dõi thành công'
+            );
+        } catch (error) {
+            return ResponseUtil.error(
+                `Lỗi khi thêm vào danh sách theo dõi: ${
+                    error instanceof Error ? error.message : 'Không xác định'
+                }`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
     }
-    
+
     /**
-     * Xóa một sự kiện theo dõi
-     * @param userId - ID của người dùng từ token
-     * @param eventId - ID của sự kiện cần bỏ theo dõi
-     * @returns Response chuẩn chứa kết quả xóa
+     * Xóa sự kiện khỏi danh sách theo dõi
+     * @param id - ID của bản ghi theo dõi
+     * @returns Kết quả xóa
      */
-    async remove(userId: string, eventId: string): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             const trackedEvent = await this.trackedEventRepository.findOne({
-                where: { userId, eventId }
+                where: {id}
             });
 
-            if (!trackedEvent) {
+            if(!trackedEvent) {
                 return ResponseUtil.error(
-                    'Không tìm thấy sự kiện theo dõi',
+                    'Không tìm thấy thông tin theo dõi sự kiện',
                     HttpStatus.NOT_FOUND
                 );
             }
 
-            await this.trackedEventRepository.remove(trackedEvent);
-            return ResponseUtil.success({ deleted: true });
+            await this.trackedEventRepository.delete(id);
+            return ResponseUtil.success(
+                {deleted: true},
+                'Xóa khỏi danh sách theo dõi thành công'
+            );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi xóa sự kiện theo dõi: ${error.message}`,
+                    `Lỗi khi xóa khỏi danh sách theo dõi: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -83,25 +114,24 @@ export class TrackedEventService {
     }
 
     /**
-     * Kiểm tra xem người dùng đã theo dõi sự kiện chưa
-     * @param userId - ID của người dùng từ token
-     * @param eventId - ID của sự kiện cần kiểm tra
-     * @returns Response chuẩn chứa trạng thái theo dõi
+     * Kiểm tra trạng thái theo dõi sự kiện
+     * @param userId - ID người dùng
+     * @param eventId - ID sự kiện
+     * @returns Trạng thái theo dõi
      */
     async isEventTracked(userId: string, eventId: string): Promise<IResponse<{ isTracked: boolean } | null>> {
         try {
             const trackedEvent = await this.trackedEventRepository.findOne({
-                where: { userId, eventId }
+                where: { user: { id: userId }, event: { id: eventId } }
             });
 
             return ResponseUtil.success(
-                { isTracked: !!trackedEvent },
-                'Kiểm tra trạng thái theo dõi thành công'
+                { isTracked: !!trackedEvent }
             );
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi kiểm tra trạng thái theo dõi: ${error.message}`,
+                    `Lỗi khi kiểm tra trạng thái: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }
@@ -110,20 +140,17 @@ export class TrackedEventService {
     }
 
     /**
-     * Lấy số lượng người theo dõi một sự kiện
-     * @param eventId - ID của sự kiện cần lấy số lượng người theo dõi
-     * @returns Response chuẩn chứa số lượng người theo dõi
+     * Lấy số lượng người theo dõi sự kiện
+     * @param eventId - ID sự kiện
+     * @returns Số lượng người theo dõi
      */
-    async getEventTrackersCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
+    async getEventTrackedCount(eventId: string): Promise<IResponse<{ count: number } | null>> {
         try {
             const count = await this.trackedEventRepository.count({
-                where: { eventId }
+                where: { event: { id: eventId } }
             });
 
-            return ResponseUtil.success(
-                { count },
-                'Lấy số lượng người theo dõi thành công'
-            );
+            return ResponseUtil.success({ count });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
@@ -136,43 +163,94 @@ export class TrackedEventService {
     }
 
     /**
-     * Lấy danh sách sự kiện theo dõi của một người dùng với phân trang
-     * @param userId - ID của người dùng từ token
-     * @param page - Số trang cần lấy (mặc định: 1)
-     * @param limit - Số lượng item trên mỗi trang (mặc định: 10)
-     * @returns Response chuẩn chứa danh sách sự kiện theo dõi đã phân trang
+     * Lấy danh sách sự kiện đang theo dõi của người dùng
+     * @param userId - ID người dùng
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách sự kiện đang theo dõi
      */
     async findAllByUserIdPaginated(
         userId: string,
         page: number = 1,
         limit: number = 10
-    ): Promise<IResponse<{ data: TrackedEventResponseDto[], total: number, page: number, limit: number } | null>> {
+    ): Promise<IResponse<{ events: UserTrackedEventsResponseDto[], total: number, page: number, limit: number } | null>> {
         try {
             const [trackedEvents, total] = await this.trackedEventRepository.findAndCount({
-                where: { userId },
-                relations: ['event', 'event.images'],
+                where: { user: { id: userId } },
+                relations: ['event', 'event.images', 'user'],
                 skip: (page - 1) * limit,
                 take: limit,
                 order: { createdAt: 'DESC' }
             });
 
-            const responseDtos = trackedEvents
-                .map(TrackedEventMapper.toResponseDto)
-                .filter((dto): dto is TrackedEventResponseDto => dto !== null);
-
-            return ResponseUtil.success(
-                {
-                    data: responseDtos,
-                    total,
+            const responseDto = TrackedEventMapper.toUserEventsDto(trackedEvents);
+            if (!responseDto) {
+                return ResponseUtil.success({
+                    events: [],
+                    total: 0,
                     page,
                     limit
-                },
-                'Lấy danh sách sự kiện theo dõi thành công'
-            );
+                });
+            }
+
+            return ResponseUtil.success({
+                events: [responseDto],
+                total,
+                page,
+                limit
+            });
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
-                    `Lỗi khi lấy danh sách sự kiện theo dõi: ${error.message}`,
+                    `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Lấy danh sách người theo dõi của một sự kiện
+     * @param eventId - ID sự kiện
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người theo dõi
+     */
+    async getEventTracked(
+        eventId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{ data: EventTrackedResponseDto[], total: number, page: number, limit: number } | null>> {
+        try {
+            const [tracked, total] = await this.trackedEventRepository.findAndCount({
+                where: { event: { id: eventId } },
+                relations: ['user', 'event', 'event.images'],
+                skip: (page - 1) * limit,
+                take: limit,
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto = TrackedEventMapper.toEventTrackedDto(tracked);
+            if (!responseDto) {
+                return ResponseUtil.success({
+                    data: [],
+                    total: 0,
+                    page,
+                    limit
+                });
+            }
+
+            return ResponseUtil.success({
+                data: [responseDto],
+                total,
+                page,
+                limit
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi lấy danh sách người theo dõi: ${error.message}`,
                     HttpStatus.INTERNAL_SERVER_ERROR
                 );
             }

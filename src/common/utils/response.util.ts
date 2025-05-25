@@ -1,5 +1,4 @@
 import { IResponse } from '../interfaces/response.interface';
-import { Request } from 'express';
 
 export class ResponseUtil {
 
