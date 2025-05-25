@@ -1,6 +1,6 @@
 {
   "name": "project",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "",
   "author": "",
   "private": true,
@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
-    "run-build" : "rm -rf node_modules package-lock.json && npm install && npm start",
+    "run-build": "rm -rf node_modules package-lock.json && npm install && npm start",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
