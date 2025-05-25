@@ -13,6 +13,7 @@ import {
   UploadedFiles,
   Req,
   Put,
+  Logger
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,7 +34,6 @@ import { IResponse } from 'src/common/interfaces/response.interface';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { getUserId } from 'src/common/utils/user.util';
 import { RequestWithUser } from 'src/common/types/request-with-user.interface';
-import { Logger } from '@nestjs/common';
 
 @ApiTags('Users')
 @Controller('users')

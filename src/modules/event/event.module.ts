@@ -12,6 +12,7 @@ import { Hashtag } from './entities/hashtag.entity';
 import { EventHashtag } from './entities/event-hashtag.entity';
 import { HashtagService } from './service/hashtag.service';
 import { HashtagController } from './controller/hashtag.controller';
+import { UserModule } from 'src/modules/user/user.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { HashtagController } from './controller/hashtag.controller';
         signOptions: { expiresIn: process.env.JWT_EXPIRATION },
       }),
     }),
-    S3Module
+    S3Module,
+    UserModule
   ],
   controllers: [EventController, HashtagController],
   providers: [

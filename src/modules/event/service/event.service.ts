@@ -14,6 +14,7 @@ import { IEvent } from '../interfaces/event.interface';
 import { EventResponseDto } from '../dto/response/event-response.dto';
 import { EventMapper } from '../mappers/event.mapper';
 import { HashtagService } from './hashtag.service';
+import { UserService } from 'src/modules/user/service/user.service';
 
 @Injectable()
 export class EventService {
@@ -32,6 +33,7 @@ export class EventService {
 
         private readonly s3Service: S3Service,
         private readonly hashtagService: HashtagService,
+        private readonly userService: UserService,
     ) {}
     
     /**
@@ -166,9 +168,16 @@ export class EventService {
     /**
      * Lấy thông tin chi tiết một sự kiện theo ID
      * @param id - ID của sự kiện cần lấy
-     * @returns Response chuẩn chứa thông tin sự kiện
+     * @returns Response chuẩn chứa thông tin sự kiện và thông tin người tạo
      */
-    async findOne(id: string): Promise<IResponse<EventResponseDto | null>> {
+    async findOne(id: string): Promise<IResponse<EventResponseDto & {
+        createdBy: {
+            id: string;
+            firstName: string;
+            lastName: string;
+            avatar: string;
+        }
+    } | null>> {
         try {
             const event = await this.eventRepository.findOne({
                 where: { id },
@@ -182,8 +191,32 @@ export class EventService {
                 );
             }
 
+            // Lấy thông tin user
+            const userResponse = await this.userService.findOne(event.createdBy);
+            const user = userResponse?.data;
+
             const eventDto = EventMapper.toResponseDto(event);
-            return ResponseUtil.success(eventDto, 'Lấy thông tin sự kiện thành công');
+            if (!eventDto) {
+                return ResponseUtil.error(
+                    'Không thể chuyển đổi dữ liệu sự kiện',
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+
+            return ResponseUtil.success({
+                ...eventDto,
+                createdBy: userResponse?.status ? {
+                    id: user?.id || event.createdBy,
+                    firstName: user?.firstName || '',
+                    lastName: user?.lastName || '',
+                    avatar: typeof user?.avatar === 'string' ? user.avatar : ''
+                } : {
+                    id: event.createdBy,
+                    firstName: '',
+                    lastName: '',
+                    avatar: ''
+                }
+            }, 'Lấy thông tin sự kiện thành công');
         } catch (error) {
             if (error instanceof Error) {
                 return ResponseUtil.error(
