@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.23](https://github.com/chiencse/EventEase/compare/v0.0.22...v0.0.23) (2025-05-28)
+
+
+### Bug Fixes
+
+* favourite and participated ([ac43cb7](https://github.com/chiencse/EventEase/commit/ac43cb708056b1653cf9067c6012f19e05099105))
+* remove debug log for hashed password in password reset process ([6645928](https://github.com/chiencse/EventEase/commit/66459282de3912591e4ab26b76e844f87a969ece))
+* resetPassword ([bf9d9f1](https://github.com/chiencse/EventEase/commit/bf9d9f1a9523a1c4a7f5c5a34311aa98bdf769f0))
+
 ### [0.0.22](https://github.com/chiencse/EventEase/compare/v0.0.21...v0.0.22) (2025-05-28)
 
 ### [0.0.21](https://github.com/chiencse/EventEase/compare/v0.0.20...v0.0.21) (2025-05-28)
