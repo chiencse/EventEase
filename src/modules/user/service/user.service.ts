@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, HttpStatus, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { S3Service } from 'src/common/s3/s3.service';
+import { S3Service } from 'src/common/aws/s3.service';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/request/create-user.dto';
 import { UpdatePasswordDto } from '../dto/request/update-password.dto';

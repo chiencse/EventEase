@@ -5,14 +5,17 @@ import { JwtModule } from '@nestjs/jwt';
 
 import dataSource from 'src/database/ormconfig';
 import { UserModule } from './modules/user/user.module';
+import { FollowerModule } from './modules/follower/follower.module';
 import { EventModule } from './modules/event/event.module';
 import { TrackedEventModule } from './modules/tracked_event/tracked-event.module';
 import { FavouriteEventModule } from './modules/favourite_event/favourite-event.module';
 import { ParticipatedEventModule } from './modules/participated_event/participated-event.module';
-import { S3Service } from './common/s3/s3.service';
+import { S3Service } from './common/aws/s3.service';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { MailModule } from './common/mail/mail.module';
+
 /**
  * AppModule là module gốc của toàn bộ ứng dụng NestJS.
  * Tại đây sẽ cấu hình:
@@ -48,6 +51,8 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
       }),
     }),
 
+    MailModule,
+
     // Các module nghiệp vụ
     AuthModule,
     UserModule,
@@ -55,6 +60,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     TrackedEventModule,
     FavouriteEventModule,
     ParticipatedEventModule,
+    FollowerModule,
   ],
 
   // Controller gốc
@@ -82,3 +88,4 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
+
