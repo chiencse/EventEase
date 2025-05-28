@@ -68,6 +68,10 @@ export class AuthService implements OnModuleInit {
             throw new UnauthorizedException('Tên đăng nhập hoặc mật khẩu không đúng');
         }
 
+        // Log để debug
+        this.logger.debug('Stored hashed password:', user.password);
+        this.logger.debug('Input password:', loginDto.password);
+
         // Kiểm tra mật khẩu
         const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
         this.logger.debug(`Password comparison result: ${isPasswordValid}`);
@@ -376,7 +380,6 @@ export class AuthService implements OnModuleInit {
 
         // Mã hóa mật khẩu mới
         const hashedPassword = await this.userService['hashPassword'](resetPasswordDto.newPassword);
-        this.logger.debug('New hashed password:', hashedPassword);
 
         // Cập nhật mật khẩu mới
         await this.userService['userRepository'].update(user.id, { password: hashedPassword });
