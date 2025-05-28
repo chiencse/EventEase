@@ -58,13 +58,17 @@ export class ParticipatedEventService {
 
     /**
      * Hủy tham gia sự kiện
-     * @param id - ID của bản ghi tham gia
+     * @param userId - ID người dùng
+     * @param eventId - ID của sự kiện
      * @returns Kết quả hủy tham gia
      */
-    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(userId: string, eventId: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             const participatedEvent = await this.participatedEventRepository.findOne({
-                where: {id}
+                where: {
+                    user: { id: userId },
+                    event: { id: eventId }
+                }
             });
 
             if(!participatedEvent) {
@@ -74,7 +78,7 @@ export class ParticipatedEventService {
                 );
             }
 
-            await this.participatedEventRepository.delete(id);
+            await this.participatedEventRepository.delete(participatedEvent.id);
             return ResponseUtil.success(
                 {deleted: true},
                 'Hủy tham gia sự kiện thành công'

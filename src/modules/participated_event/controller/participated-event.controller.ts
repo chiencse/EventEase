@@ -45,31 +45,19 @@ export class ParticipatedEventController {
 
     /**
      * Hủy tham gia sự kiện
-     * @param id - ID của bản ghi tham gia
+     * @param eventId - ID của bản ghi tham gia
      * @returns Kết quả hủy tham gia
      */
-    @Delete(':id')
-    @ApiOperation({
-        summary: 'Hủy tham gia sự kiện',
-        description: 'Cho phép người dùng hủy tham gia một sự kiện đã đăng ký trước đó.'
-    })
-    @ApiParam({
-        name: 'id',
-        description: 'ID của bản ghi tham gia sự kiện',
-        type: String
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Hủy tham gia thành công'
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Không tìm thấy thông tin tham gia sự kiện'
-    })
+    @Delete(':eventId')
+    @ApiOperation({ summary: 'Hủy tham gia sự kiện' })
+    @ApiResponse({ status: 200, description: 'Hủy tham gia thành công' })
+    @ApiResponse({ status: 404, description: 'Không tìm thấy thông tin tham gia' })
     async remove(
-        @Param('id') id: string
-    ): Promise<IResponse<{ deleted: boolean } | null>> {
-        return this.participatedEventService.remove(id);
+        @Req() request: RequestWithUser,
+        @Param('eventId') eventId: string
+    ): Promise<IResponse<{deleted: boolean} | null>> {
+        const userId = await getUserId(request);
+        return this.participatedEventService.remove(userId, eventId);
     }
 
     /**

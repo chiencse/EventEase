@@ -82,13 +82,17 @@ export class FavouriteEventService {
 
     /**
      * Xóa sự kiện khỏi danh sách yêu thích
-     * @param id - ID của bản ghi yêu thích
+     * @param userId - ID người dùng
+     * @param eventId - ID của sự kiện
      * @returns Kết quả xóa
      */
-    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(userId: string, eventId: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             const favouriteEvent = await this.favouriteEventRepository.findOne({
-                where: {id}
+                where: {
+                    user: { id: userId },
+                    event: { id: eventId }
+                }
             });
 
             if(!favouriteEvent) {
@@ -98,7 +102,7 @@ export class FavouriteEventService {
                 );
             }
 
-            await this.favouriteEventRepository.delete(id);
+            await this.favouriteEventRepository.delete(favouriteEvent.id);
             return ResponseUtil.success(
                 {deleted: true},
                 'Xóa khỏi danh sách yêu thích thành công'

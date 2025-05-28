@@ -37,28 +37,16 @@ export class FavouriteEventController {
         return this.favouriteEventService.create(userId, createFavouriteEventDto);
     }
 
-    @Delete(':id')
-    @ApiOperation({
-        summary: 'Xóa sự kiện khỏi danh sách yêu thích',
-        description: 'Cho phép người dùng xóa một sự kiện khỏi danh sách yêu thích.'
-    })
-    @ApiParam({
-        name: 'id',
-        description: 'ID của bản ghi yêu thích sự kiện',
-        type: String
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Xóa khỏi danh sách yêu thích thành công'
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Không tìm thấy thông tin yêu thích sự kiện'
-    })
+    @Delete(':eventId')
+    @ApiOperation({ summary: 'Xóa sự kiện khỏi danh sách yêu thích' })
+    @ApiResponse({ status: 200, description: 'Xóa thành công' })
+    @ApiResponse({ status: 404, description: 'Không tìm thấy thông tin yêu thích' })
     async remove(
-        @Param('id') id: string
-    ): Promise<IResponse<{ deleted: boolean } | null>> {
-        return this.favouriteEventService.remove(id);
+        @Req() request: RequestWithUser,
+        @Param('eventId') eventId: string
+    ): Promise<IResponse<{deleted: boolean} | null>> {
+        const userId = await getUserId(request);
+        return this.favouriteEventService.remove(userId, eventId);
     }
 
     @Get('check/:eventId')
