@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.21](https://github.com/chiencse/EventEase/compare/v0.0.20...v0.0.21) (2025-05-28)
+
+
+### Features
+
+* **auth:** implement password reset functionality with OTP verification ([0860ea8](https://github.com/chiencse/EventEase/commit/0860ea84392015d7aba08785a0d4b0c9c4a96ed9))
+* **follower:** Update follow function ([c347ded](https://github.com/chiencse/EventEase/commit/c347dedf729bf97a1d850d7b597a28ab712904de))
+
 ### [0.0.20](https://github.com/chiencse/EventEase/compare/v0.0.19...v0.0.20) (2025-05-25)
 
 ### [0.0.19](https://github.com/chiencse/EventEase/compare/v0.0.18...v0.0.19) (2025-05-25)
