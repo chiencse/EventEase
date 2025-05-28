@@ -380,7 +380,6 @@ export class AuthService implements OnModuleInit {
 
         // Mã hóa mật khẩu mới
         const hashedPassword = await this.userService['hashPassword'](resetPasswordDto.newPassword);
-        this.logger.debug('New hashed password:', hashedPassword);
 
         // Cập nhật mật khẩu mới
         await this.userService['userRepository'].update(user.id, { password: hashedPassword });
