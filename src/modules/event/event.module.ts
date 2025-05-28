@@ -7,7 +7,7 @@ import { ImageEvent } from './entities/image-event.entity';
 import { TrackedEvent } from '../tracked_event/entities/tracked-event.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
-import { S3Module } from 'src/common/s3/s3.module';
+import { S3Module } from 'src/common/aws/s3.module';
 import { Hashtag } from './entities/hashtag.entity';
 import { EventHashtag } from './entities/event-hashtag.entity';
 import { HashtagService } from './service/hashtag.service';

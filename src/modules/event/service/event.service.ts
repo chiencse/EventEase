@@ -6,7 +6,7 @@ import { Event } from '../entities/event.entity';
 import { ImageEvent } from '../entities/image-event.entity';
 import { EventHashtag } from '../entities/event-hashtag.entity';
 import { Hashtag } from '../entities/hashtag.entity';
-import { S3Service } from 'src/common/s3/s3.service';
+import { S3Service } from 'src/common/aws/s3.service';
 import { CreateEventDto } from '../dto/request/create-event.dto';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';

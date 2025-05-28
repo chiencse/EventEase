@@ -10,6 +10,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { UserModule } from '../user/user.module';
 import { RevokedToken } from './entities/revoked-token.entity';
+import { OTP } from './entities/otp.entity';
+import { MailModule } from '../../common/mail/mail.module';
 import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -47,8 +49,9 @@ export class JwtWithRevokedCheckGuard extends AuthGuard('jwt') {
             }),
             inject: [ConfigService],
         }),
-        TypeOrmModule.forFeature([RevokedToken]),
+        TypeOrmModule.forFeature([RevokedToken, OTP]),
         ScheduleModule.forRoot(),
+        MailModule,
     ],
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
