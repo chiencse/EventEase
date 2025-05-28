@@ -29,6 +29,8 @@ services:
       - db
     networks:
       - backend
+    volumes:
+      - ./ca.pem:/usr/src/app/ca.pem
 
 volumes:
   db_data:

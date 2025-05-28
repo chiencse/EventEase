@@ -1,6 +1,6 @@
 {
   "name": "project",
-  "version": "0.0.17",
+  "version": "0.0.20",
   "description": "",
   "author": "",
   "private": true,
@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/src/main",
+    "start:prod": "node dist/main",
     "run-build": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm start",
     "test": "jest",
     "test:watch": "jest --watch",
