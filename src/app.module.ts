@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 
 import dataSource from 'src/database/ormconfig';
 import { UserModule } from './modules/user/user.module';
+import { FollowerModule } from './modules/follower/follower.module';
 import { EventModule } from './modules/event/event.module';
 import { TrackedEventModule } from './modules/tracked_event/tracked-event.module';
 import { FavouriteEventModule } from './modules/favourite_event/favourite-event.module';
@@ -55,6 +56,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     TrackedEventModule,
     FavouriteEventModule,
     ParticipatedEventModule,
+    FollowerModule,
   ],
 
   // Controller gốc
