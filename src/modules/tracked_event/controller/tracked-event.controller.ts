@@ -6,6 +6,8 @@ import { CreateTrackedEventDto } from '../dto/tracked-event.dto';
 import { EventTrackedResponseDto, UserTrackedEventsResponseDto } from '../dto/tracked-event-response.dto';
 import { IResponse } from 'src/common/interfaces/response.interface';
 import { getUserId } from 'src/common/utils/user.util';
+import { RequestWithUser } from 'src/common/types/request-with-user.interface';
+
 
 @ApiTags('Tracked Events')
 @Controller('tracked-events')
@@ -36,25 +38,16 @@ export class TrackedEventController {
         return this.trackedEventService.create(userId, createTrackedEventDto);
     }
 
-    @Delete(':id')
-    @ApiOperation({
-        summary: 'Xóa sự kiện khỏi danh sách theo dõi',
-        description: 'Cho phép người dùng hủy theo dõi một sự kiện'
-    })
-    @ApiParam({
-        name: 'id',
-        description: 'ID của bản ghi theo dõi cần xóa'
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Xóa khỏi danh sách theo dõi thành công'
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Không tìm thấy thông tin theo dõi sự kiện'
-    })
-    async remove(@Param('id') id: string): Promise<IResponse<{deleted: boolean} | null>> {
-        return this.trackedEventService.remove(id);
+    @Delete(':eventId')
+    @ApiOperation({ summary: 'Xóa sự kiện khỏi danh sách theo dõi' })
+    @ApiResponse({ status: 200, description: 'Xóa thành công' })
+    @ApiResponse({ status: 404, description: 'Không tìm thấy thông tin theo dõi' })
+    async remove(
+        @Req() request: RequestWithUser,
+        @Param('eventId') eventId: string
+    ): Promise<IResponse<{deleted: boolean} | null>> {
+        const userId = await getUserId(request);
+        return this.trackedEventService.remove(userId, eventId);
     }
 
     @Get('check/:eventId')

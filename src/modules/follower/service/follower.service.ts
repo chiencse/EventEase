@@ -126,31 +126,38 @@ export class FollowerService {
     }
 
     /**
-     * Lấy số lượng người theo dõi hoặc được theo dõi
+     * Lấy số lượng người theo dõi và đang theo dõi của người dùng
      * @param userId - ID người dùng
-     * @param follow - true nếu lấy người theo dõi, false nếu lấy người được theo dõi
-     * @returns Số lượng người yêu thích
+     * @returns Số lượng người đang theo dõi và được theo dõi
      */
-    async getCount(
-        userId: string,
-        follow: boolean
-    ): Promise<IResponse<{ count: number } | null>> {
+    async getFollowCount(
+        userId: string
+    ): Promise<IResponse<{ followingCount: number; followersCount: number } | null>> {
         try {
-            console.log('userId', userId, 'follow', follow);
-            const count = await this.followerRepository.count({
-                where: follow
-                    ? { user_1_id: userId }
-                    : { user_2_id: userId },
+            const [followingCount, followersCount] = await Promise.all([
+                this.followerRepository.count({
+                    where: {
+                        user_1: { id: userId },
+                        isFollow: true
+                    }
+                }),
+                this.followerRepository.count({
+                    where: {
+                        user_2: { id: userId },
+                        isFollowed: true
+                    }
+                })
+            ]);
+
+            return ResponseUtil.success({
+                followingCount,
+                followersCount
             });
-            return ResponseUtil.success({ count });
         } catch (error) {
-            if (error instanceof Error) {
-                return ResponseUtil.error(
-                    `Lỗi khi lấy số lượng người yêu thích: ${error.message}`,
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                );
-            }
-            throw error;
+            return ResponseUtil.error(
+                `Lỗi khi lấy số lượng người theo dõi: ${error instanceof Error ? error.message : 'Không xác định'}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
     }
 
@@ -202,6 +209,54 @@ export class FollowerService {
                 );
             }
             throw error;
+        }
+    }
+
+    /**
+     * Lấy danh sách người đang theo dõi mình
+     * @param userId - ID người dùng
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người đang theo dõi và thông tin phân trang
+     */
+    async getFollowers(
+        userId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{ data: FollowerUserDto[]; total: number; page: number; limit: number } | null>> {
+        try {
+            const [followRecords, total] = await this.followerRepository.findAndCount({
+                where: {
+                    user_2: { id: userId },
+                    isFollowed: true
+                },
+                relations: ['user_1'],
+                skip: (page - 1) * limit,
+                take: limit,
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto: FollowerUserDto[] = followRecords.map(follow => ({
+                user: {
+                    id: follow.user_1.id,
+                    firstName: follow.user_1.firstName,
+                    lastName: follow.user_1.lastName,
+                    avatar: follow.user_1.avatar
+                },
+                createdAt: follow.createdAt
+            }));
+
+            return ResponseUtil.success({
+                data: responseDto,
+                total,
+                page,
+                limit
+            });
+        } catch (error) {
+            return ResponseUtil.error(
+                `Lỗi khi lấy danh sách người theo dõi: ${error instanceof Error ? error.message : 'Không xác định'}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
     }
 
@@ -267,6 +322,138 @@ export class FollowerService {
                 );
             }
             throw error;
+        }
+    }
+
+    /**
+     * Lấy thống kê theo dõi của một người dùng
+     * @param userId - ID người dùng cần lấy thống kê
+     * @returns Số lượng người đang theo dõi và được theo dõi
+     */
+    async getUserFollowStats(
+        userId: string
+    ): Promise<IResponse<{ followingCount: number; followersCount: number } | null>> {
+        try {
+            const [followingCount, followersCount] = await Promise.all([
+                this.followerRepository.count({
+                    where: {
+                        user_1: { id: userId },
+                        isFollow: true
+                    }
+                }),
+                this.followerRepository.count({
+                    where: {
+                        user_2: { id: userId },
+                        isFollowed: true
+                    }
+                })
+            ]);
+
+            return ResponseUtil.success({
+                followingCount,
+                followersCount
+            });
+        } catch (error) {
+            return ResponseUtil.error(
+                `Lỗi khi lấy thống kê theo dõi: ${error instanceof Error ? error.message : 'Không xác định'}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Lấy danh sách người mà một người dùng đang theo dõi
+     * @param userId - ID người dùng cần lấy danh sách
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người dùng đang được theo dõi
+     */
+    async getUserFollowing(
+        userId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{ data: FollowerUserDto[]; total: number; page: number; limit: number } | null>> {
+        try {
+            const [followRecords, total] = await this.followerRepository.findAndCount({
+                where: {
+                    user_1: { id: userId },
+                    isFollow: true
+                },
+                relations: ['user_2'],
+                skip: (page - 1) * limit,
+                take: limit,
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto: FollowerUserDto[] = followRecords.map(follow => ({
+                user: {
+                    id: follow.user_2.id,
+                    firstName: follow.user_2.firstName,
+                    lastName: follow.user_2.lastName,
+                    avatar: follow.user_2.avatar
+                },
+                createdAt: follow.createdAt
+            }));
+
+            return ResponseUtil.success({
+                data: responseDto,
+                total,
+                page,
+                limit
+            });
+        } catch (error) {
+            return ResponseUtil.error(
+                `Lỗi khi lấy danh sách người đang theo dõi: ${error instanceof Error ? error.message : 'Không xác định'}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Lấy danh sách người đang theo dõi một người dùng
+     * @param userId - ID người dùng cần lấy danh sách
+     * @param page - Số trang
+     * @param limit - Số lượng item trên mỗi trang
+     * @returns Danh sách người dùng đang theo dõi
+     */
+    async getUserFollowers(
+        userId: string,
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{ data: FollowerUserDto[]; total: number; page: number; limit: number } | null>> {
+        try {
+            const [followRecords, total] = await this.followerRepository.findAndCount({
+                where: {
+                    user_2: { id: userId },
+                    isFollowed: true
+                },
+                relations: ['user_1'],
+                skip: (page - 1) * limit,
+                take: limit,
+                order: { createdAt: 'DESC' }
+            });
+
+            const responseDto: FollowerUserDto[] = followRecords.map(follow => ({
+                user: {
+                    id: follow.user_1.id,
+                    firstName: follow.user_1.firstName,
+                    lastName: follow.user_1.lastName,
+                    avatar: follow.user_1.avatar
+                },
+                createdAt: follow.createdAt
+            }));
+
+            return ResponseUtil.success({
+                data: responseDto,
+                total,
+                page,
+                limit
+            });
+        } catch (error) {
+            return ResponseUtil.error(
+                `Lỗi khi lấy danh sách người theo dõi: ${error instanceof Error ? error.message : 'Không xác định'}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
     }
 }

@@ -16,7 +16,7 @@ export const databaseConfig: DataSourceOptions = {
   migrations: ['dist/database/migrations/*.js'],
   ssl: {
     rejectUnauthorized: true,
-    ca: fs.readFileSync(path.resolve(__dirname, '../../ca.pem')).toString(), // Sử dụng path.resolve
+    ca: fs.readFileSync(path.resolve(__dirname, '../../ca.pem')).toString(),
   },
 };
 
