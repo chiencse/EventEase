@@ -81,13 +81,17 @@ export class TrackedEventService {
 
     /**
      * Xóa sự kiện khỏi danh sách theo dõi
-     * @param id - ID của bản ghi theo dõi
+     * @param userId - ID người dùng
+     * @param eventId - ID của sự kiện
      * @returns Kết quả xóa
      */
-    async remove(id: string): Promise<IResponse<{deleted: boolean} | null>> {
+    async remove(userId: string, eventId: string): Promise<IResponse<{deleted: boolean} | null>> {
         try {
             const trackedEvent = await this.trackedEventRepository.findOne({
-                where: {id}
+                where: {
+                    user: { id: userId },
+                    event: { id: eventId }
+                }
             });
 
             if(!trackedEvent) {
@@ -97,7 +101,7 @@ export class TrackedEventService {
                 );
             }
 
-            await this.trackedEventRepository.delete(id);
+            await this.trackedEventRepository.delete(trackedEvent.id);
             return ResponseUtil.success(
                 {deleted: true},
                 'Xóa khỏi danh sách theo dõi thành công'
