@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.24](https://github.com/chiencse/EventEase/compare/v0.0.23...v0.0.24) (2025-05-29)
+
+
+### Features
+
+* enhance event and follower functionalities ([542c3e9](https://github.com/chiencse/EventEase/commit/542c3e9dcb2cce31525d8702685f98ff64064a9b))
+
 ### [0.0.23](https://github.com/chiencse/EventEase/compare/v0.0.22...v0.0.23) (2025-05-28)
 
 
