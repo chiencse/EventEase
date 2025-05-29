@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.25](https://github.com/chiencse/EventEase/compare/v0.0.24...v0.0.25) (2025-05-29)
+
+
+### Features
+
+* add global prefix for API routes ([bc81e21](https://github.com/chiencse/EventEase/commit/bc81e21bfdfa4ac6d3d954d4154e47bc9afec6e8))
+
 ### [0.0.24](https://github.com/chiencse/EventEase/compare/v0.0.23...v0.0.24) (2025-05-29)
 
 
