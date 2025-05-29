@@ -15,6 +15,9 @@ async function bootstrap() {
   // Khởi tạo NestJS app với AppModule
   const app = await NestFactory.create(AppModule);
 
+  // Thêm global prefix cho toàn bộ API
+  app.setGlobalPrefix('eventease/api');
+
   // Global ValidationPipe áp dụng cho toàn bộ request body/query/param
   app.useGlobalPipes(
     new ValidationPipe({
