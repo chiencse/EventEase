@@ -456,4 +456,28 @@ export class FollowerService {
             );
         }
     }
+
+    /**
+     * Kiểm tra người dùng có phải là chính mình không
+     * @param currentUserId - ID người dùng hiện tại
+     * @param targetUserId - ID người dùng cần kiểm tra
+     * @returns Kết quả kiểm tra
+     */
+    async checkIsSelf(currentUserId: string, targetUserId: string): Promise<IResponse<{ isSelf: boolean } | null>> {
+        try {
+            const isSelf = currentUserId === targetUserId;
+            return ResponseUtil.success(
+                { isSelf },
+                isSelf ? 'Đây là tài khoản của bạn' : 'Đây không phải tài khoản của bạn'
+            );
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi kiểm tra: ${error.message}`,
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
 }

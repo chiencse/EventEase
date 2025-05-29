@@ -293,4 +293,34 @@ export class FollowerController {
     ): Promise<IResponse<{ data: FollowerUserDto[]; total: number; page: number; limit: number } | null>> {
         return this.followerService.getUserFollowers(userId, page, limit);
     }
+
+    @Get('check-self/:targetUserId')
+    @ApiOperation({
+        summary: 'Kiểm tra người dùng có phải là chính mình không',
+        description: 'Kiểm tra xem người dùng hiện tại có phải là chính mình không'
+    })
+    @ApiParam({
+        name: 'targetUserId',
+        description: 'ID của người dùng cần kiểm tra',
+        type: String
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Trả về kết quả kiểm tra',
+        schema: {
+            properties: {
+                isSelf: {
+                    type: 'boolean',
+                    description: 'true nếu là chính mình, false nếu không phải'
+                }
+            }
+        }
+    })
+    async checkIsSelf(
+        @Req() request: RequestWithUser,
+        @Param('targetUserId') targetUserId: string
+    ): Promise<IResponse<{ isSelf: boolean } | null>> {
+        const currentUserId = await getUserId(request);
+        return this.followerService.checkIsSelf(currentUserId, targetUserId);
+    }
 }
