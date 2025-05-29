@@ -26,6 +26,7 @@ import { IEvent } from '../interfaces/event.interface';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RequestWithUser } from 'src/common/types/request-with-user.interface';
 import { getUserId } from 'src/common/utils/user.util';
+import { SearchEventByKeywordDto, SearchEventByLocationDto } from '../dto/search-event.dto';
 
 @Controller('events')
 @ApiTags('Events')
@@ -199,6 +200,13 @@ export class EventController {
         return this.eventService.remove(id);
     }
 
+    /**
+     * Lấy danh sách sự kiện có phân trang
+     * @param page - Số trang (mặc định: 1)
+     * @param limit - Số lượng sự kiện mỗi trang (mặc định: 10)
+     * @param search - Từ khóa tìm kiếm theo tên sự kiện
+     * @returns Danh sách sự kiện và thông tin phân trang
+     */
     @Get()
     @ApiOperation({ summary: 'Lấy danh sách sự kiện có phân trang' })
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Số trang (mặc định: 1)' })
@@ -230,5 +238,21 @@ export class EventController {
             parsedLimit,
             search
         );
+    }
+
+    /**
+     * Tìm kiếm sự kiện theo khu vực lân cận
+     * @param searchDto - Dữ liệu tìm kiếm
+     * @returns Danh sách sự kiện và thông tin phân trang
+     */
+    @Get('search/location')
+    @ApiOperation({ summary: 'Tìm kiếm sự kiện theo khu vực lân cận' })
+    @ApiQuery({ name: 'location', required: true, type: String, description: 'Địa điểm tìm kiếm' })
+    @ApiQuery({ name: 'radius', required: false, type: Number, description: 'Bán kính tìm kiếm (km, mặc định: 10)' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Số trang (mặc định: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số lượng sự kiện mỗi trang (mặc định: 10)' })
+    @ApiResponse({ status: 200, description: 'Tìm kiếm thành công' })
+    async searchByLocation(@Query() searchDto: SearchEventByLocationDto) {
+        return this.eventService.searchByLocation(searchDto);
     }
 }

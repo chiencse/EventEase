@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like, ILike } from 'typeorm';
 
 import { Event } from '../entities/event.entity';
 import { ImageEvent } from '../entities/image-event.entity';
@@ -15,6 +15,7 @@ import { EventResponseDto } from '../dto/response/event-response.dto';
 import { EventMapper } from '../mappers/event.mapper';
 import { HashtagService } from './hashtag.service';
 import { UserService } from 'src/modules/user/service/user.service';
+import { SearchEventByKeywordDto, SearchEventByLocationDto } from '../dto/search-event.dto';
 
 @Injectable()
 export class EventService {
@@ -577,6 +578,87 @@ export class EventService {
                         }
                     },
                     message: `Lỗi khi lấy danh sách sự kiện: ${error.message}`,
+                    status: false,
+                    code: HttpStatus.INTERNAL_SERVER_ERROR,
+                    timestamp: new Date().toISOString()
+                };
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Tìm kiếm sự kiện theo khu vực lân cận
+     * @param searchDto - DTO chứa thông tin địa điểm và bán kính tìm kiếm
+     * @returns Danh sách sự kiện trong khu vực
+     */
+    async searchByLocation(searchDto: SearchEventByLocationDto): Promise<IResponse<{
+        items: EventResponseDto[];
+        meta: {
+            totalItems: number;
+            itemCount: number;
+            itemsPerPage: number;
+            totalPages: number;
+            currentPage: number;
+        };
+    }>> {
+        try {
+            const { location, radius = 10, page = 1, limit = 10 } = searchDto;
+            const skip = (page - 1) * limit;
+
+            // Tạo query builder với các relations cần thiết
+            const queryBuilder = this.eventRepository
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.images', 'images')
+                .leftJoinAndSelect('event.eventHashtags', 'eventHashtags')
+                .leftJoinAndSelect('eventHashtags.hashtag', 'hashtag');
+
+            // Thêm điều kiện tìm kiếm theo địa điểm
+            queryBuilder.where('event.position ILIKE :location', { location: `%${location}%` });
+
+            // Lấy tổng số items
+            const totalItems = await queryBuilder.getCount();
+
+            // Lấy danh sách sự kiện với phân trang
+            const events = await queryBuilder
+                .skip(skip)
+                .take(limit)
+                .orderBy('event.createdAt', 'DESC')
+                .getMany();
+
+            // Chuyển đổi sang DTO
+            const eventDtos = events
+                .map(event => EventMapper.toResponseDto(event))
+                .filter((dto): dto is EventResponseDto => dto !== null);
+
+            // Tính toán thông tin phân trang
+            const totalPages = Math.ceil(totalItems / limit);
+            const itemCount = eventDtos.length;
+
+            return ResponseUtil.success({
+                items: eventDtos,
+                meta: {
+                    totalItems,
+                    itemCount,
+                    itemsPerPage: limit,
+                    totalPages,
+                    currentPage: page,
+                },
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                return {
+                    data: {
+                        items: [],
+                        meta: {
+                            totalItems: 0,
+                            itemCount: 0,
+                            itemsPerPage: searchDto.limit || 10,
+                            totalPages: 0,
+                            currentPage: searchDto.page || 1
+                        }
+                    },
+                    message: `Lỗi khi tìm kiếm sự kiện theo địa điểm: ${error.message}`,
                     status: false,
                     code: HttpStatus.INTERNAL_SERVER_ERROR,
                     timestamp: new Date().toISOString()
