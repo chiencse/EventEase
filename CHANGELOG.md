@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.27](https://github.com/chiencse/EventEase/compare/v0.0.26...v0.0.27) (2025-05-31)
+
+
+### Bug Fixes
+
+* **service:** Event update service fix hashtags and images ([0fe5b0b](https://github.com/chiencse/EventEase/commit/0fe5b0bc0cbdc6d2afbf0673ef1b74a3011a3121))
+
 ### [0.0.26](https://github.com/chiencse/EventEase/compare/v0.0.25...v0.0.26) (2025-05-29)
 
 
