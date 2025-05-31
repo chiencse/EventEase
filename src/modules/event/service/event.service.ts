@@ -245,7 +245,7 @@ export class EventService {
         try {
             const event = await this.eventRepository.findOne({
                 where: { id },
-                relations: ['images']
+                relations: ['images', 'eventHashtags', 'eventHashtags.hashtag']
             });
 
             if (!event) {
@@ -255,8 +255,23 @@ export class EventService {
                 );
             }
 
-            const { images, ...updateData } = updateEventDto;
+            const { images, hashtags, ...updateData } = updateEventDto;
+            if (hashtags && hashtags.length > 0) {
+                // Xóa các liên kết cũ trước khi gọi handleHashtags
+                if (event.eventHashtags && event.eventHashtags.length > 0) {
+                    await this.eventHashtagRepository.remove(event.eventHashtags);
+                    event.eventHashtags = []; // Clear bộ nhớ để tránh conflict
+                }
+            
+                // Gọi lại handle như khi tạo mới
+                await this.handleHashtags(event, hashtags);
 
+                // Refetch để lấy lại eventHashtags mới
+                event.eventHashtags = await this.eventHashtagRepository.find({
+                    where: { event: { id: event.id } },
+                    relations: ['hashtag']
+                });
+            }
             Object.assign(event, updateData);
 
             if (images) {
@@ -279,7 +294,7 @@ export class EventService {
                             isMain: index === 0
                         })
                     );
-                    
+                    event.images = imageEntities;
                     await this.imageRepository.save(imageEntities);
                 }
             }
@@ -288,8 +303,10 @@ export class EventService {
 
             const updatedEvent = await this.eventRepository.findOne({
                 where: { id },
-                relations: ['images']
+                relations: ['images', 'eventHashtags', 'eventHashtags.hashtag']
             });
+            console.log("Event sau update:", updatedEvent);
+            console.log("Hashtags sau update:", updatedEvent?.eventHashtags.map(eh => eh.hashtag));
 
             if (!updatedEvent) {
                 return ResponseUtil.error(
