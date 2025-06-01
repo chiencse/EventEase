@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.27](https://github.com/chiencse/EventEase/compare/v0.0.26...v0.0.27) (2025-05-31)
+
+
+### Bug Fixes
+
+* **service:** Event update service fix hashtags and images ([0fe5b0b](https://github.com/chiencse/EventEase/commit/0fe5b0bc0cbdc6d2afbf0673ef1b74a3011a3121))
+
+### [0.0.26](https://github.com/chiencse/EventEase/compare/v0.0.25...v0.0.26) (2025-05-29)
+
+
+### Features
+
+* add check self endpoint to follower functionality ([017e194](https://github.com/chiencse/EventEase/commit/017e1941eaec84370b343ca2e9dbc95c036a2d37))
+
+### [0.0.25](https://github.com/chiencse/EventEase/compare/v0.0.24...v0.0.25) (2025-05-29)
+
+
+### Features
+
+* add global prefix for API routes ([bc81e21](https://github.com/chiencse/EventEase/commit/bc81e21bfdfa4ac6d3d954d4154e47bc9afec6e8))
+
+### [0.0.24](https://github.com/chiencse/EventEase/compare/v0.0.23...v0.0.24) (2025-05-29)
+
+
+### Features
+
+* enhance event and follower functionalities ([542c3e9](https://github.com/chiencse/EventEase/commit/542c3e9dcb2cce31525d8702685f98ff64064a9b))
+
 ### [0.0.23](https://github.com/chiencse/EventEase/compare/v0.0.22...v0.0.23) (2025-05-28)
 
 
