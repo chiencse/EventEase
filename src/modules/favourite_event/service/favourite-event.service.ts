@@ -70,13 +70,13 @@ export class FavouriteEventService {
             'Thêm vào danh sách yêu thích thành công'
           );
         } catch (error) {
-          return ResponseUtil.error(
+                return ResponseUtil.error(  
             `Lỗi khi thêm vào danh sách yêu thích: ${
               error instanceof Error ? error.message : 'Không xác định'
             }`,
-            HttpStatus.INTERNAL_SERVER_ERROR
-          );
-        }
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
       }
       
 
@@ -200,7 +200,7 @@ export class FavouriteEventService {
 
             return ResponseUtil.success({
                 events: [responseDto],
-                total,
+                    total,
                 page,
                 limit
             });
