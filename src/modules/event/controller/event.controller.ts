@@ -8,8 +8,6 @@ import {
     Delete,
     UseInterceptors,
     UploadedFiles,
-    ParseIntPipe,
-    HttpStatus,
     UseGuards,
     Query,
     BadRequestException,

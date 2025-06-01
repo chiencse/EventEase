@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, UseGuards, Req, ParseBoolPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { FollowerService } from '../service/follower.service';
 import { CreateFollowerDto } from '../dto/follower.dto';
 import { FollowerResponseDto, FollowerUserDto } from '../dto/follower-response.dto';
