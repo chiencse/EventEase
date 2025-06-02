@@ -12,6 +12,7 @@ import { IResponse } from 'src/common/interfaces/response.interface';
 import { ResponseUtil } from 'src/common/utils/response.util';
 import { Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { RegisterDto } from '../dto/request/register.dto';
 
 @Injectable()
 export class UserService {
@@ -301,5 +302,47 @@ export class UserService {
         const hashedPassword = await bcrypt.hash(password, salt);
         this.logger.debug(`Generated hash: ${hashedPassword}`);
         return hashedPassword;
+    }
+
+    /**
+     * Đăng ký tài khoản mới
+     * @param registerDto DTO chứa thông tin đăng ký
+     * @returns Response chứa thông tin người dùng đã đăng ký
+     */
+    async register(registerDto: RegisterDto): Promise<IResponse<UserResponseDto | null>> {
+        try {
+            // Kiểm tra mật khẩu và xác nhận mật khẩu
+            if (registerDto.password !== registerDto.confirmPassword) {
+                throw new ConflictException('Mật khẩu xác nhận không khớp');
+            }
+
+            // Kiểm tra các ràng buộc duy nhất
+            await this.validateUniqueConstraints(registerDto);
+
+            // Hash mật khẩu
+            const hashedPassword = await this.hashPassword(registerDto.password);
+
+            // Tạo user mới
+            const user = await UserMapper.toEntity({
+                ...registerDto,
+                password: hashedPassword
+            });
+
+            // Lưu user vào database
+            const savedUser = await this.userRepository.save(user);
+
+            return ResponseUtil.success(
+                UserMapper.toResponseDto(savedUser),
+                'Đăng ký tài khoản thành công'
+            );
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi đăng ký tài khoản: ${error.message}`,
+                    error instanceof ConflictException ? HttpStatus.CONFLICT : HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
     }
 }
