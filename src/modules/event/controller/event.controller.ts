@@ -267,4 +267,23 @@ export class EventController {
     async searchByLocation(@Query() searchDto: SearchEventByLocationDto) {
         return this.eventService.searchByLocation(searchDto);
     }
+
+    @Get('list/upcoming')
+    @ApiOperation({ summary: 'Lấy danh sách sự kiện sắp tới' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Số trang (mặc định: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số lượng sự kiện mỗi trang (mặc định: 10)' })
+    @ApiResponse({ status: 200, description: 'Lấy danh sách sự kiện thành công' })
+    async getUpcomingEvents(
+        @Query('page') page: string = '1',
+        @Query('limit') limit: string = '10'
+    ) {
+        const parsedPage = isNaN(Number(page)) ? 1 : Number(page);
+        const parsedLimit = isNaN(Number(limit)) ? 10 : Number(limit);
+
+        // Thêm xác thực để đảm bảo giá trị hợp lệ
+        if (parsedPage < 1) throw new BadRequestException('Số trang phải lớn hơn 0');
+        if (parsedLimit < 1) throw new BadRequestException('Số lượng sự kiện mỗi trang phải lớn hơn 0');
+
+        return this.eventService.getUpcomingEvents(parsedPage, parsedLimit);
+    }
 }

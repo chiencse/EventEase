@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, ILike } from 'typeorm';
+import { Repository} from 'typeorm';
 
 import { Event } from '../entities/event.entity';
 import { ImageEvent } from '../entities/image-event.entity';
@@ -15,7 +15,7 @@ import { EventResponseDto } from '../dto/response/event-response.dto';
 import { EventMapper } from '../mappers/event.mapper';
 import { HashtagService } from './hashtag.service';
 import { UserService } from 'src/modules/user/service/user.service';
-import { SearchEventByKeywordDto, SearchEventByLocationDto } from '../dto/search-event.dto';
+import { SearchEventByLocationDto } from '../dto/search-event.dto';
 
 @Injectable()
 export class EventService {
@@ -605,6 +605,165 @@ export class EventService {
     }
 
     /**
+     * Lấy danh sách sự kiện trong tháng hiện tại
+     * @param page Số trang (mặc định: 1)
+     * @param limit Số lượng sự kiện mỗi trang (mặc định: 10)
+     * @returns Danh sách sự kiện trong tháng hiện tại
+     */
+    async getEventsInCurrentMonth(
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{
+        items: EventResponseDto[];
+        meta: {
+            totalItems: number;
+            itemCount: number;
+            itemsPerPage: number;
+            totalPages: number;
+            currentPage: number;
+        };
+    }>> {
+        try {
+            // Lấy ngày đầu tiên và cuối cùng của tháng hiện tại
+            const now = new Date();
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            // Tạo query builder
+            const queryBuilder = this.eventRepository
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.images', 'images', 'images.isMain = :isMain', { isMain: true })
+                .where('event.startTime >= :firstDay', { firstDay: firstDayOfMonth })
+                .andWhere('event.startTime <= :lastDay', { lastDay: lastDayOfMonth })
+                .orderBy('event.startTime', 'ASC');
+
+            // Lấy tổng số items
+            const totalItems = await queryBuilder.getCount();
+
+            // Tính toán offset
+            const skip = (page - 1) * limit;
+
+            // Lấy danh sách sự kiện với phân trang
+            const events = await queryBuilder
+                .skip(skip)
+                .take(limit)
+                .getMany();
+
+            // Chuyển đổi sang DTO
+            const eventDtos = events
+                .map(event => EventMapper.toResponseDto(event))
+                .filter((dto): dto is EventResponseDto => dto !== null);
+
+            // Tính toán thông tin phân trang
+            const totalPages = Math.ceil(totalItems / limit);
+            const itemCount = eventDtos.length;
+
+            return ResponseUtil.success({
+                items: eventDtos,
+                meta: {
+                    totalItems,
+                    itemCount,
+                    itemsPerPage: limit,
+                    totalPages,
+                    currentPage: page,
+                },
+            }, 'Lấy danh sách sự kiện trong tháng thành công');
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.success({
+                    items: [],
+                    meta: {
+                        totalItems: 0,
+                        itemCount: 0,
+                        itemsPerPage: limit,
+                        totalPages: 0,
+                        currentPage: page,
+                    },
+                }, `Lỗi khi lấy danh sách sự kiện trong tháng: ${error.message}`);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Lấy danh sách sự kiện từ hiện tại đến tương lai
+     * @param page Số trang (mặc định: 1)
+     * @param limit Số lượng sự kiện mỗi trang (mặc định: 10)
+     * @returns Danh sách sự kiện sắp tới
+     */
+    async getUpcomingEvents(
+        page: number = 1,
+        limit: number = 10
+    ): Promise<IResponse<{
+        items: EventResponseDto[];
+        meta: {
+            totalItems: number;
+            itemCount: number;
+            itemsPerPage: number;
+            totalPages: number;
+            currentPage: number;
+        };
+    }>> {
+        try {
+            // Lấy thời gian hiện tại
+            const now = new Date();
+
+            // Tạo query builder
+            const queryBuilder = this.eventRepository
+                .createQueryBuilder('event')
+                .leftJoinAndSelect('event.images', 'images', 'images.isMain = :isMain', { isMain: true })
+                .where('event.startTime >= :now', { now })
+                .orderBy('event.startTime', 'ASC');
+
+            // Lấy tổng số items
+            const totalItems = await queryBuilder.getCount();
+
+            // Tính toán offset
+            const skip = (page - 1) * limit;
+
+            // Lấy danh sách sự kiện với phân trang
+            const events = await queryBuilder
+                .skip(skip)
+                .take(limit)
+                .getMany();
+
+            // Chuyển đổi sang DTO
+            const eventDtos = events
+                .map(event => EventMapper.toResponseDto(event))
+                .filter((dto): dto is EventResponseDto => dto !== null);
+
+            // Tính toán thông tin phân trang
+            const totalPages = Math.ceil(totalItems / limit);
+            const itemCount = eventDtos.length;
+
+            return ResponseUtil.success({
+                items: eventDtos,
+                meta: {
+                    totalItems,
+                    itemCount,
+                    itemsPerPage: limit,
+                    totalPages,
+                    currentPage: page,
+                },
+            }, 'Lấy danh sách sự kiện sắp tới thành công');
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.success({
+                    items: [],
+                    meta: {
+                        totalItems: 0,
+                        itemCount: 0,
+                        itemsPerPage: limit,
+                        totalPages: 0,
+                        currentPage: page,
+                    },
+                }, `Lỗi khi lấy danh sách sự kiện sắp tới: ${error.message}`);
+            }
+            throw error;
+        }
+    }
+
+    /**
      * Tìm kiếm sự kiện theo vị trí với xử lý thông minh
      * @param searchDto - DTO chứa thông tin địa điểm và bán kính tìm kiếm
      * @returns Danh sách sự kiện trong khu vực
@@ -629,9 +788,7 @@ export class EventService {
             // Tạo query builder với các relations cần thiết
             const queryBuilder = this.eventRepository
                 .createQueryBuilder('event')
-                .leftJoinAndSelect('event.images', 'images')
-                .leftJoinAndSelect('event.eventHashtags', 'eventHashtags')
-                .leftJoinAndSelect('eventHashtags.hashtag', 'hashtag');
+                .leftJoinAndSelect('event.images', 'images', 'images.isMain = :isMain', { isMain: true });
 
             // Thêm điều kiện tìm kiếm theo địa điểm với nhiều pattern
             queryBuilder.where(
@@ -775,89 +932,6 @@ export class EventService {
         }
 
         return '';
-    }
-
-    /**
-     * Lấy danh sách sự kiện trong tháng hiện tại
-     * @param page Số trang (mặc định: 1)
-     * @param limit Số lượng sự kiện mỗi trang (mặc định: 10)
-     * @returns Danh sách sự kiện trong tháng hiện tại
-     */
-    async getEventsInCurrentMonth(
-        page: number = 1,
-        limit: number = 10
-    ): Promise<IResponse<{
-        items: EventResponseDto[];
-        meta: {
-            totalItems: number;
-            itemCount: number;
-            itemsPerPage: number;
-            totalPages: number;
-            currentPage: number;
-        };
-    }>> {
-        try {
-            // Lấy ngày đầu tiên và cuối cùng của tháng hiện tại
-            const now = new Date();
-            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-            // Tạo query builder
-            const queryBuilder = this.eventRepository
-                .createQueryBuilder('event')
-                .leftJoinAndSelect('event.images', 'images')
-                .leftJoinAndSelect('event.eventHashtags', 'eventHashtags')
-                .leftJoinAndSelect('eventHashtags.hashtag', 'hashtag')
-                .where('event.startTime >= :firstDay', { firstDay: firstDayOfMonth })
-                .andWhere('event.startTime <= :lastDay', { lastDay: lastDayOfMonth })
-                .orderBy('event.startTime', 'ASC');
-
-            // Lấy tổng số items
-            const totalItems = await queryBuilder.getCount();
-
-            // Tính toán offset
-            const skip = (page - 1) * limit;
-
-            // Lấy danh sách sự kiện với phân trang
-            const events = await queryBuilder
-                .skip(skip)
-                .take(limit)
-                .getMany();
-
-            // Chuyển đổi sang DTO
-            const eventDtos = events
-                .map(event => EventMapper.toResponseDto(event))
-                .filter((dto): dto is EventResponseDto => dto !== null);
-
-            // Tính toán thông tin phân trang
-            const totalPages = Math.ceil(totalItems / limit);
-            const itemCount = eventDtos.length;
-
-            return ResponseUtil.success({
-                items: eventDtos,
-                meta: {
-                    totalItems,
-                    itemCount,
-                    itemsPerPage: limit,
-                    totalPages,
-                    currentPage: page,
-                },
-            }, 'Lấy danh sách sự kiện trong tháng thành công');
-        } catch (error) {
-            if (error instanceof Error) {
-                return ResponseUtil.success({
-                    items: [],
-                    meta: {
-                        totalItems: 0,
-                        itemCount: 0,
-                        itemsPerPage: limit,
-                        totalPages: 0,
-                        currentPage: page,
-                    },
-                }, `Lỗi khi lấy danh sách sự kiện trong tháng: ${error.message}`);
-            }
-            throw error;
-        }
     }
 }
 
