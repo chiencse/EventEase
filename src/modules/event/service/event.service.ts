@@ -605,7 +605,7 @@ export class EventService {
     }
 
     /**
-     * Tìm kiếm sự kiện theo khu vực lân cận
+     * Tìm kiếm sự kiện theo vị trí với xử lý thông minh
      * @param searchDto - DTO chứa thông tin địa điểm và bán kính tìm kiếm
      * @returns Danh sách sự kiện trong khu vực
      */
@@ -623,6 +623,9 @@ export class EventService {
             const { location, radius = 10, page = 1, limit = 10 } = searchDto;
             const skip = (page - 1) * limit;
 
+            // Chuẩn hóa location để tìm kiếm
+            const normalizedLocation = this.normalizeLocation(location);
+
             // Tạo query builder với các relations cần thiết
             const queryBuilder = this.eventRepository
                 .createQueryBuilder('event')
@@ -630,11 +633,36 @@ export class EventService {
                 .leftJoinAndSelect('event.eventHashtags', 'eventHashtags')
                 .leftJoinAndSelect('eventHashtags.hashtag', 'hashtag');
 
-            // Thêm điều kiện tìm kiếm theo địa điểm
-            queryBuilder.where('event.position ILIKE :location', { location: `%${location}%` });
+            // Thêm điều kiện tìm kiếm theo địa điểm với nhiều pattern
+            queryBuilder.where(
+                `(
+                    LOWER(event.position) LIKE LOWER(:exactLocation) OR
+                    LOWER(event.position) LIKE LOWER(:withQuan) OR
+                    LOWER(event.position) LIKE LOWER(:withQ) OR
+                    LOWER(event.position) LIKE LOWER(:withDistrict) OR
+                    LOWER(event.position) LIKE LOWER(:withCity)
+                )`,
+                {
+                    exactLocation: `%${normalizedLocation}%`,
+                    withQuan: `%quan ${normalizedLocation}%`,
+                    withQ: `%q. ${normalizedLocation}%`,
+                    withDistrict: `%district ${normalizedLocation}%`,
+                    withCity: `%${this.getCityFromLocation(normalizedLocation)}%`
+                }
+            );
 
             // Lấy tổng số items
             const totalItems = await queryBuilder.getCount();
+
+            // Nếu không tìm thấy kết quả ở cấp quận/huyện, tìm ở cấp thành phố/tỉnh
+            if (totalItems === 0) {
+                const cityLocation = this.getCityFromLocation(normalizedLocation);
+                if (cityLocation) {
+                    queryBuilder.where('LOWER(event.position) LIKE LOWER(:cityLocation)', {
+                        cityLocation: `%${cityLocation}%`
+                    });
+                }
+            }
 
             // Lấy danh sách sự kiện với phân trang
             const events = await queryBuilder
@@ -661,28 +689,92 @@ export class EventService {
                     totalPages,
                     currentPage: page,
                 },
-            });
+            }, 'Tìm kiếm sự kiện theo vị trí thành công');
         } catch (error) {
             if (error instanceof Error) {
-                return {
-                    data: {
-                        items: [],
-                        meta: {
-                            totalItems: 0,
-                            itemCount: 0,
-                            itemsPerPage: searchDto.limit || 10,
-                            totalPages: 0,
-                            currentPage: searchDto.page || 1
-                        }
+                return ResponseUtil.success({
+                    items: [],
+                    meta: {
+                        totalItems: 0,
+                        itemCount: 0,
+                        itemsPerPage: searchDto.limit || 10,
+                        totalPages: 0,
+                        currentPage: searchDto.page || 1,
                     },
-                    message: `Lỗi khi tìm kiếm sự kiện theo địa điểm: ${error.message}`,
-                    status: false,
-                    code: HttpStatus.INTERNAL_SERVER_ERROR,
-                    timestamp: new Date().toISOString()
-                };
+                }, `Lỗi khi tìm kiếm sự kiện theo vị trí: ${error.message}`);
             }
             throw error;
         }
+    }
+
+    /**
+     * Chuẩn hóa tên địa điểm để tìm kiếm
+     * @param location Tên địa điểm cần chuẩn hóa
+     * @returns Tên địa điểm đã chuẩn hóa
+     */
+    private normalizeLocation(location: string): string {
+        // Loại bỏ các ký tự đặc biệt và khoảng trắng thừa
+        let normalized = location.trim().toLowerCase();
+        
+        // Xử lý các trường hợp đặc biệt
+        normalized = normalized
+            .replace(/quận\s*/i, '')
+            .replace(/q\.\s*/i, '')
+            .replace(/q\s*/i, '')
+            .replace(/huyện\s*/i, '')
+            .replace(/district\s*/i, '')
+            .replace(/phường\s*/i, '')
+            .replace(/ward\s*/i, '')
+            .replace(/xã\s*/i, '')
+            .replace(/commune\s*/i, '')
+            .replace(/\s+/g, ' ');
+
+        return normalized;
+    }
+
+    /**
+     * Lấy tên thành phố/tỉnh từ địa điểm
+     * @param location Tên địa điểm
+     * @returns Tên thành phố/tỉnh
+     */
+    private getCityFromLocation(location: string): string {
+        // Map các quận/huyện với thành phố/tỉnh tương ứng
+        const locationMap: { [key: string]: string } = {
+            '1': 'Hồ Chí Minh',
+            '2': 'Hồ Chí Minh',
+            '3': 'Hồ Chí Minh',
+            '4': 'Hồ Chí Minh',
+            '5': 'Hồ Chí Minh',
+            '6': 'Hồ Chí Minh',
+            '7': 'Hồ Chí Minh',
+            '8': 'Hồ Chí Minh',
+            '9': 'Hồ Chí Minh',
+            '10': 'Hồ Chí Minh',
+            '11': 'Hồ Chí Minh',
+            '12': 'Hồ Chí Minh',
+            'thu duc': 'Hồ Chí Minh',
+            'binh thanh': 'Hồ Chí Minh',
+            'phu nhuan': 'Hồ Chí Minh',
+            'go vap': 'Hồ Chí Minh',
+            'tan binh': 'Hồ Chí Minh',
+            'tan phu': 'Hồ Chí Minh',
+            'binh tan': 'Hồ Chí Minh',
+            'hoc mon': 'Hồ Chí Minh',
+            'cu chi': 'Hồ Chí Minh',
+            'nha be': 'Hồ Chí Minh',
+            'can gio': 'Hồ Chí Minh',
+            'binh chanh': 'Hồ Chí Minh',
+            // Thêm các mapping khác cho các tỉnh/thành phố khác
+        };
+
+        // Tìm thành phố/tỉnh tương ứng
+        for (const [key, value] of Object.entries(locationMap)) {
+            if (location.includes(key)) {
+                return value;
+            }
+        }
+
+        return '';
     }
 }
 
