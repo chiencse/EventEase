@@ -34,6 +34,7 @@ import { IResponse } from 'src/common/interfaces/response.interface';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { getUserId } from 'src/common/utils/user.util';
 import { RequestWithUser } from 'src/common/types/request-with-user.interface';
+import { RegisterDto } from '../dto/request/register.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -259,5 +260,13 @@ export class UserController {
     @Param('id') id: string,
   ): Promise<IResponse<{ deleted: boolean }>> {
     return this.userService.remove(id);
+  }
+
+  @Post('register')
+  @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
+  @ApiResponse({ status: 201, description: 'Đăng ký thành công' })
+  @ApiResponse({ status: 409, description: 'Email/username đã tồn tại hoặc mật khẩu không khớp' })
+  async register(@Body() registerDto: RegisterDto) {
+    return this.userService.register(registerDto);
   }
 }
