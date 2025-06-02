@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Req,
+  HttpStatus,
 } from '@nestjs/common';
 import { FollowerService } from '../service/follower.service';
 import { CreateFollowerDto } from '../dto/follower.dto';
@@ -28,6 +29,7 @@ import { IResponse } from 'src/common/interfaces/response.interface';
 import { getUserId } from 'src/common/utils/user.util';
 import { RequestWithUser } from 'src/common/types/request-with-user.interface';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { ResponseUtil } from 'src/common/utils/response.util';
 
 @Controller('follower')
 @ApiTags('Follower')
@@ -401,5 +403,88 @@ export class FollowerController {
   async getSuggestedFollowers(@Req() request: RequestWithUser): Promise<any> {
     const userId = await getUserId(request);
     return this.followerService.getSuggestedFollows(userId);
+  }
+
+  /**
+   * Tìm kiếm người dùng thông minh
+   * @param searchTerm - Từ khóa tìm kiếm
+   * @param page - Số trang (mặc định: 1)
+   * @param limit - Số lượng item mỗi trang (mặc định: 10)
+   * @returns Danh sách người dùng phù hợp
+   */
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm người dùng thông minh' })
+  @ApiQuery({ name: 'searchTerm', required: true, description: 'Từ khóa tìm kiếm' })
+  @ApiQuery({ name: 'page', required: false, description: 'Số trang (mặc định: 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Số lượng item mỗi trang (mặc định: 10)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tìm kiếm thành công',
+    schema: {
+      example: {
+        status: true,
+        code: 200,
+        message: 'Tìm kiếm người dùng thành công',
+        data: {
+          items: [
+            {
+              user: {
+                id: 'user-id',
+                firstName: 'Nguyễn',
+                lastName: 'Văn A',
+                avatar: 'avatar-url'
+              },
+              createdAt: '2024-03-20T10:00:00Z'
+            }
+          ],
+          meta: {
+            totalItems: 100,
+            itemCount: 10,
+            itemsPerPage: 10,
+            totalPages: 10,
+            currentPage: 1
+          }
+        },
+        timestamp: '2024-03-20T10:00:00Z'
+      }
+    }
+  })
+  async searchUsers(
+    @Query('searchTerm') searchTerm: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10
+  ): Promise<IResponse<{
+    items: FollowerUserDto[];
+    meta: {
+      totalItems: number;
+      itemCount: number;
+      itemsPerPage: number;
+      totalPages: number;
+      currentPage: number;
+    };
+  }>> {
+    const request = (global as any).request;
+    const userId = request?.user?.id;
+    
+    if (!userId) {
+      return {
+        status: false,
+        code: HttpStatus.UNAUTHORIZED,
+        message: 'Không tìm thấy thông tin người dùng',
+        data: {
+          items: [],
+          meta: {
+            totalItems: 0,
+            itemCount: 0,
+            itemsPerPage: limit,
+            totalPages: 0,
+            currentPage: page
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    return this.followerService.searchUsers(userId, searchTerm, page, limit);
   }
 }

@@ -541,72 +541,227 @@ export class FollowerService {
   async getSuggestedFollows(
     userId: string,
   ): Promise<IResponse<SuggestionFollowerDto[]>> {
-    // Lấy các người bạn bạn đang theo dõi
-    const following = await this.followerRepository.find({
-      where: { user_1_id: userId, isFollow: true },
-      relations: ['user_2'],
-    });
-
-    if (following.length === 0) {
-      const allUsers = await this.userRepository.find({
-        where: { id: Not(userId) }, // Loại trừ người dùng hiện tại
-        take: 10, // Giới hạn số lượng người dùng gợi ý
+    try {
+      // Lấy các người bạn bạn đang theo dõi
+      const following = await this.followerRepository.find({
+        where: { user_1_id: userId, isFollow: true },
+        relations: ['user_2'],
       });
-      return ResponseUtil.success(
-        allUsers.map((user) => ({
-          id: user.id,
-          name: `${user.lastName} ${user.firstName}`,
-          avatar: user.avatar,
-          mutualFriend: '',
-          createdAt: new Date(),
-        })),
-      );
-    }
-    console.log('Following:', following);
-    const followingIds = following.map((f) => f.user_2_id);
 
-    const suggestionsRaw = await this.followerRepository
-      .createQueryBuilder('f')
-      .innerJoinAndSelect('f.user_2', 'suggestedUser')
-      .where('f.user_1_id IN (:...followingIds)', { followingIds })
-      .andWhere('f.isFollow = true')
-      .andWhere('f.user_2_id != :userId', { userId })
-      .andWhere((qb) => {
-        const sub = qb
-          .subQuery()
-          .select('1')
-          .from(Follower, 'existing')
-          .where('existing.user_1_id = :userId')
-          .andWhere('existing.user_2_id = f.user_2_id')
-          .andWhere('existing.isFollow = true')
-          .getQuery();
-        return `NOT EXISTS ${sub}`;
-      })
-      .getMany();
-
-    // Map người gợi ý (mutual friend) đầu tiên cho mỗi suggested user
-    const resultMap = new Map<string, SuggestionFollowerDto>();
-
-    for (const item of suggestionsRaw) {
-      const suggested = item.user_2;
-      if (!resultMap.has(suggested.id)) {
-        // Tìm tên người bạn mutual đã gợi ý
-        const mutualFriend = following.find(
-          (f) => f.user_1_id === userId && f.user_2_id === item.user_1_id,
+      // Nếu chưa follow ai, lấy ngẫu nhiên 10 người dùng
+      if (following.length === 0) {
+        const allUsers = await this.userRepository.find({
+          where: { id: Not(userId) }, // Loại trừ người dùng hiện tại
+          take: 10, // Giới hạn số lượng người dùng gợi ý
+        });
+        return ResponseUtil.success(
+          allUsers.map((user) => ({
+            id: user.id,
+            name: `${user.lastName} ${user.firstName}`,
+            avatar: user.avatar,
+            mutualFriend: '',
+            createdAt: new Date(),
+          })),
         );
-        resultMap.set(suggested.id, {
-          id: suggested.id,
-          name: `${suggested.lastName} ${suggested.firstName}`,
-          avatar: suggested.avatar,
-          mutualFriend:
-            mutualFriend?.user_2?.lastName +
+      }
+
+      const followingIds = following.map((f) => f.user_2_id);
+
+      // Tìm những người mà bạn bè của bạn đang follow
+      const suggestionsRaw = await this.followerRepository
+        .createQueryBuilder('f')
+        .innerJoinAndSelect('f.user_2', 'suggestedUser')
+        .where('f.user_1_id IN (:...followingIds)', { followingIds })
+        .andWhere('f.isFollow = true')
+        .andWhere('f.user_2_id != :userId', { userId })
+        .andWhere((qb) => {
+          const sub = qb
+            .subQuery()
+            .select('1')
+            .from(Follower, 'existing')
+            .where('existing.user_1_id = :userId')
+            .andWhere('existing.user_2_id = f.user_2_id')
+            .andWhere('existing.isFollow = true')
+            .getQuery();
+          return `NOT EXISTS ${sub}`;
+        })
+        .getMany();
+
+      // Nếu không tìm thấy gợi ý từ bạn bè, lấy ngẫu nhiên người dùng khác
+      if (suggestionsRaw.length === 0) {
+        const otherUsers = await this.userRepository
+          .createQueryBuilder('user')
+          .where('user.id != :userId', { userId })
+          .andWhere('user.id NOT IN (:...followingIds)', { followingIds: [...followingIds, userId] })
+          .orderBy('RANDOM()')
+          .take(10)
+          .getMany();
+
+        return ResponseUtil.success(
+          otherUsers.map((user) => ({
+            id: user.id,
+            name: `${user.lastName} ${user.firstName}`,
+            avatar: user.avatar,
+            mutualFriend: '',
+            createdAt: new Date(),
+          })),
+        );
+      }
+
+      // Map người gợi ý (mutual friend) đầu tiên cho mỗi suggested user
+      const resultMap = new Map<string, SuggestionFollowerDto>();
+
+      for (const item of suggestionsRaw) {
+        const suggested = item.user_2;
+        if (!resultMap.has(suggested.id)) {
+          // Tìm tên người bạn mutual đã gợi ý
+          const mutualFriend = following.find(
+            (f) => f.user_1_id === userId && f.user_2_id === item.user_1_id,
+          );
+          resultMap.set(suggested.id, {
+            id: suggested.id,
+            name: `${suggested.lastName} ${suggested.firstName}`,
+            avatar: suggested.avatar,
+            mutualFriend:
+              mutualFriend?.user_2?.lastName +
               ' ' +
               mutualFriend?.user_2?.firstName || 'Người dùng ẩn danh',
-          createdAt: item.createdAt,
+            createdAt: item.createdAt,
+          });
+        }
+      }
+
+      return ResponseUtil.success([...resultMap.values()]);
+    } catch (error) {
+      if (error instanceof Error) {
+        return {
+          status: false,
+          code: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: `Lỗi khi lấy danh sách gợi ý: ${error.message}`,
+          data: [],
+          timestamp: new Date().toISOString()
+        };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Tìm kiếm người dùng thông minh
+   * - Tìm theo tên, họ tương tự
+   * - Loại trừ bản thân
+   * - Có phân trang
+   * @param userId - ID người dùng hiện tại
+   * @param searchTerm - Từ khóa tìm kiếm
+   * @param page - Số trang (mặc định: 1)
+   * @param limit - Số lượng item mỗi trang (mặc định: 10)
+   * @returns Danh sách người dùng phù hợp
+   */
+  async searchUsers(
+    userId: string,
+    searchTerm: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<IResponse<{
+    items: FollowerUserDto[];
+    meta: {
+      totalItems: number;
+      itemCount: number;
+      itemsPerPage: number;
+      totalPages: number;
+      currentPage: number;
+    };
+  }>> {
+    try {
+      // Chuẩn hóa từ khóa tìm kiếm
+      const normalizedSearch = searchTerm.trim().toLowerCase();
+      
+      // Tách từ khóa thành các từ riêng lẻ
+      const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length > 0);
+
+      // Tạo query builder
+      const queryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .where('user.id != :userId', { userId });
+
+      // Thêm điều kiện tìm kiếm cho từng từ
+      if (searchWords.length > 0) {
+        const conditions = searchWords.map((word, index) => {
+          const paramName = `search${index}`;
+          return `(
+            LOWER(user.firstName) LIKE LOWER(:${paramName}) OR
+            LOWER(user.lastName) LIKE LOWER(:${paramName}) OR
+            LOWER(CONCAT(user.firstName, ' ', user.lastName)) LIKE LOWER(:${paramName}) OR
+            LOWER(CONCAT(user.lastName, ' ', user.firstName)) LIKE LOWER(:${paramName})
+          )`;
+        });
+
+        queryBuilder.andWhere(`(${conditions.join(' AND ')})`);
+
+        // Thêm tham số cho từng từ
+        searchWords.forEach((word, index) => {
+          queryBuilder.setParameter(`search${index}`, `%${word}%`);
         });
       }
-    }
 
-    return ResponseUtil.success([...resultMap.values()]);
+      // Lấy tổng số items
+      const totalItems = await queryBuilder.getCount();
+
+      // Tính toán offset
+      const skip = (page - 1) * limit;
+
+      // Lấy danh sách người dùng với phân trang
+      const users = await queryBuilder
+        .skip(skip)
+        .take(limit)
+        .orderBy('user.createdAt', 'DESC')
+        .getMany();
+
+      // Chuyển đổi sang DTO
+      const items: FollowerUserDto[] = users.map(user => ({
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatar: user.avatar
+        },
+        createdAt: user.createdAt
+      }));
+
+      // Tính toán thông tin phân trang
+      const totalPages = Math.ceil(totalItems / limit);
+      const itemCount = items.length;
+
+      return ResponseUtil.success({
+        items,
+        meta: {
+          totalItems,
+          itemCount,
+          itemsPerPage: limit,
+          totalPages,
+          currentPage: page
+        }
+      }, 'Tìm kiếm người dùng thành công');
+    } catch (error) {
+      if (error instanceof Error) {
+        return {
+          status: false,
+          code: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: `Lỗi khi tìm kiếm người dùng: ${error.message}`,
+          data: {
+            items: [],
+            meta: {
+              totalItems: 0,
+              itemCount: 0,
+              itemsPerPage: limit,
+              totalPages: 0,
+              currentPage: page
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+      throw error;
+    }
   }
 }
