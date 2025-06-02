@@ -238,11 +238,25 @@ export class EventController {
         );
     }
 
-    /**
-     * Tìm kiếm sự kiện theo khu vực lân cận
-     * @param searchDto - Dữ liệu tìm kiếm
-     * @returns Danh sách sự kiện và thông tin phân trang
-     */
+    @Get('list/current-month')
+    @ApiOperation({ summary: 'Lấy danh sách sự kiện trong tháng hiện tại' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Số trang (mặc định: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số lượng sự kiện mỗi trang (mặc định: 10)' })
+    @ApiResponse({ status: 200, description: 'Lấy danh sách sự kiện thành công' })
+    async getEventsInCurrentMonth(
+        @Query('page') page: string = '1',
+        @Query('limit') limit: string = '10'
+    ) {
+        const parsedPage = isNaN(Number(page)) ? 1 : Number(page);
+        const parsedLimit = isNaN(Number(limit)) ? 10 : Number(limit);
+
+        // Thêm xác thực để đảm bảo giá trị hợp lệ
+        if (parsedPage < 1) throw new BadRequestException('Số trang phải lớn hơn 0');
+        if (parsedLimit < 1) throw new BadRequestException('Số lượng sự kiện mỗi trang phải lớn hơn 0');
+
+        return this.eventService.getEventsInCurrentMonth(parsedPage, parsedLimit);
+    }
+
     @Get('search/location')
     @ApiOperation({ summary: 'Tìm kiếm sự kiện theo khu vực lân cận' })
     @ApiQuery({ name: 'location', required: true, type: String, description: 'Địa điểm tìm kiếm' })
