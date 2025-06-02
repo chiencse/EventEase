@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.30](https://github.com/chiencse/EventEase/compare/v0.0.29...v0.0.30) (2025-06-02)
+
+
+### Features
+
+* enhance event search functionality by location ([5a991b4](https://github.com/chiencse/EventEase/commit/5a991b4e67384a86265284c6a6417d6d6a451068))
+
 ### [0.0.29](https://github.com/chiencse/EventEase/compare/v0.0.28...v0.0.29) (2025-06-02)
 
 
