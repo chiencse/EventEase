@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.34](https://github.com/chiencse/EventEase/compare/v0.0.33...v0.0.34) (2025-06-02)
+
+
+### Features
+
+* add intelligent user search and enhance suggested follows functionality ([a31d8af](https://github.com/chiencse/EventEase/commit/a31d8afd3170618913608ec12dcf8532768f80b7))
+
 ### [0.0.33](https://github.com/chiencse/EventEase/compare/v0.0.32...v0.0.33) (2025-06-02)
 
 
