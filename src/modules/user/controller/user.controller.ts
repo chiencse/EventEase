@@ -158,11 +158,10 @@ export class UserController {
   /**
    * Cập nhật mật khẩu người dùng
    */
-  @Patch('/password')
+  @Put('update-password')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cập nhật mật khẩu người dùng' })
-  @ApiParam({ name: 'id', description: 'ID của người dùng' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Cập nhật mật khẩu thành công',
