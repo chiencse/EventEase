@@ -345,4 +345,109 @@ export class UserService {
             throw error;
         }
     }
+
+    /**
+     * Cập nhật số điện thoại người dùng
+     * @param id ID của người dùng
+     * @param phone Số điện thoại mới
+     * @returns Response chứa thông tin người dùng đã cập nhật
+     */
+    async updatePhone(id: string, phone: string): Promise<IResponse<UserResponseDto | null>> {
+        try {
+            const user = await this.findUserById(id);
+            
+            // Kiểm tra định dạng số điện thoại
+            const phoneRegex = /^[0-9]{10}$/;
+            if (!phoneRegex.test(phone)) {
+                throw new BadRequestException('Số điện thoại không hợp lệ');
+            }
+
+            user.phoneNumber = phone;
+            const updatedUser = await this.userRepository.save(user);
+            
+            return ResponseUtil.success(
+                UserMapper.toResponseDto(updatedUser),
+                'Cập nhật số điện thoại thành công'
+            );
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi cập nhật số điện thoại: ${error.message}`,
+                    error instanceof BadRequestException ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Cập nhật thông tin cá nhân người dùng
+     * @param id ID của người dùng
+     * @param updateData Dữ liệu cập nhật
+     * @returns Response chứa thông tin người dùng đã cập nhật
+     */
+    async updateProfile(
+        id: string,
+        updateData: {
+            firstName?: string;
+            lastName?: string;
+            dateOfBirth?: Date;
+            address?: string;
+            email?: string;
+        }
+    ): Promise<IResponse<UserResponseDto | null>> {
+        try {
+            const user = await this.findUserById(id);
+
+            // Kiểm tra email mới nếu có
+            if (updateData.email && updateData.email !== user.email) {
+                const existingEmail = await this.findByEmail(updateData.email);
+                if (existingEmail) {
+                    throw new ConflictException('Email đã được sử dụng');
+                }
+            }
+
+            // Kiểm tra định dạng email
+            if (updateData.email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(updateData.email)) {
+                    throw new BadRequestException('Email không hợp lệ');
+                }
+            }
+
+            // Kiểm tra ngày sinh
+            if (updateData.dateOfBirth) {
+                const birthDate = new Date(updateData.dateOfBirth);
+                const today = new Date();
+                const age = today.getFullYear() - birthDate.getFullYear();
+                
+                if (age < 13) {
+                    throw new BadRequestException('Người dùng phải từ 13 tuổi trở lên');
+                }
+                
+                if (birthDate > today) {
+                    throw new BadRequestException('Ngày sinh không thể lớn hơn ngày hiện tại');
+                }
+            }
+
+            // Cập nhật thông tin
+            Object.assign(user, updateData);
+            const updatedUser = await this.userRepository.save(user);
+
+            return ResponseUtil.success(
+                UserMapper.toResponseDto(updatedUser),
+                'Cập nhật thông tin cá nhân thành công'
+            );
+        } catch (error) {
+            if (error instanceof Error) {
+                return ResponseUtil.error(
+                    `Lỗi khi cập nhật thông tin cá nhân: ${error.message}`,
+                    error instanceof BadRequestException ? HttpStatus.BAD_REQUEST :
+                    error instanceof ConflictException ? HttpStatus.CONFLICT :
+                    HttpStatus.INTERNAL_SERVER_ERROR
+                );
+            }
+            throw error;
+        }
+    }
 }

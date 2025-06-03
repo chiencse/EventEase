@@ -22,6 +22,7 @@ import {
   ApiParam,
   ApiBearerAuth,
   ApiConsumes,
+  ApiBody
 } from '@nestjs/swagger';
 import { File as MulterFile } from 'multer';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -157,7 +158,7 @@ export class UserController {
   /**
    * Cập nhật mật khẩu người dùng
    */
-  @Patch(':id/password')
+  @Patch('/password')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cập nhật mật khẩu người dùng' })
@@ -183,9 +184,10 @@ export class UserController {
     description: 'Không có quyền truy cập',
   })
   async updatePassword(
-    @Param('id') id: string,
+    @Req() request: RequestWithUser,
     @Body() updatePasswordDto: UpdatePasswordDto,
   ): Promise<IResponse<{ updated: boolean } | null>> {
+    const id = await getUserId(request);
     return this.userService.updatePassword(id, updatePasswordDto);
   }
 
@@ -268,5 +270,142 @@ export class UserController {
   @ApiResponse({ status: 409, description: 'Email/username đã tồn tại hoặc mật khẩu không khớp' })
   async register(@Body() registerDto: RegisterDto) {
     return this.userService.register(registerDto);
+  }
+
+  @Put('phone')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Cập nhật số điện thoại',
+    description: 'Cập nhật số điện thoại của người dùng hiện tại'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật số điện thoại thành công',
+    schema: {
+      example: {
+        status: true,
+        code: 200,
+        timestamp: '2025-06-03T06:11:00.111Z',
+        message: 'Cập nhật số điện thoại thành công',
+        data: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'john@example.com',
+          phoneNumber: '0123456789',
+          avatar: 'https://example.com/avatar.jpg',
+          createdAt: '2025-06-03T06:11:00.111Z',
+          updatedAt: '2025-06-03T06:11:00.111Z'
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Không có quyền truy cập'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        phone: {
+          type: 'string',
+          example: '0123456789',
+          description: 'Số điện thoại mới (10 số)'
+        }
+      },
+      required: ['phone']
+    }
+  })
+  async updatePhone(
+    @Req() request: RequestWithUser,
+    @Body('phone') phone: string
+  ): Promise<IResponse<UserResponseDto | null>> {
+    const currentUserId = await getUserId(request);
+    return this.userService.updatePhone(currentUserId, phone);
+  }
+
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Cập nhật thông tin cá nhân',
+    description: 'Cập nhật thông tin cá nhân của người dùng hiện tại'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật thông tin cá nhân thành công',
+    schema: {
+      example: {
+        status: true,
+        code: 200,
+        timestamp: '2025-06-03T06:11:00.111Z',
+        message: 'Cập nhật thông tin cá nhân thành công',
+        data: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'john@example.com',
+          phoneNumber: '0123456789',
+          avatar: 'https://example.com/avatar.jpg',
+          dateOfBirth: '1990-01-01',
+          address: '123 Street, City',
+          createdAt: '2025-06-03T06:11:00.111Z',
+          updatedAt: '2025-06-03T06:11:00.111Z'
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Không có quyền truy cập'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        firstName: {
+          type: 'string',
+          example: 'John',
+          description: 'Tên'
+        },
+        lastName: {
+          type: 'string',
+          example: 'Doe',
+          description: 'Họ'
+        },
+        dateOfBirth: {
+          type: 'string',
+          format: 'date',
+          example: '1990-01-01',
+          description: 'Ngày sinh (YYYY-MM-DD)'
+        },
+        address: {
+          type: 'string',
+          example: '123 Street, City',
+          description: 'Địa chỉ'
+        },
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'john@example.com',
+          description: 'Email mới'
+        }
+      }
+    }
+  })
+  async updateProfile(
+    @Req() request: RequestWithUser,
+    @Body() updateData: {
+      firstName?: string;
+      lastName?: string;
+      dateOfBirth?: Date;
+      address?: string;
+      email?: string;
+    }
+  ): Promise<IResponse<UserResponseDto | null>> {
+    const currentUserId = await getUserId(request);
+    return this.userService.updateProfile(currentUserId, updateData);
   }
 }
