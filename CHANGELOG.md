@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.36](https://github.com/chiencse/EventEase/compare/v0.0.35...v0.0.36) (2025-06-03)
+
+
+### Features
+
+* add phone and profile update functionalities for users ([a8e91ab](https://github.com/chiencse/EventEase/commit/a8e91ab9023296e2eb8f6d64f5424beaed4c61ba))
+
 ### [0.0.35](https://github.com/chiencse/EventEase/compare/v0.0.34...v0.0.35) (2025-06-03)
 
 
