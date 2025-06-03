@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.35](https://github.com/chiencse/EventEase/compare/v0.0.34...v0.0.35) (2025-06-03)
+
+
+### Features
+
+* enhance suggested followers functionality with pagination support ([82f41c5](https://github.com/chiencse/EventEase/commit/82f41c521f09ddd9d16eff129b264f0fa8e6f90c))
+
 ### [0.0.34](https://github.com/chiencse/EventEase/compare/v0.0.33...v0.0.34) (2025-06-02)
 
 
