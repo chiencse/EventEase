@@ -390,19 +390,34 @@ export class FollowerController {
 
   @Get('get-suggested-followers')
   @ApiOperation({
-    summary: 'Lấy danh sách người dùng gợi ý ',
-    description:
-      'Lấy danh sách người dùng mà người dùng hiện tại có thể theo dõi',
+    summary: 'Lấy danh sách người dùng gợi ý',
+    description: 'Lấy danh sách người dùng mà người dùng hiện tại có thể theo dõi'
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Số trang (mặc định: 1)'
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Số lượng item mỗi trang (mặc định: 10)'
   })
   @ApiResponse({
     status: 200,
     description: 'Danh sách người dùng gợi ý để theo dõi',
-    type: FollowerUserDto,
-    isArray: true,
+    type: SuggestionFollowerDto,
+    isArray: true
   })
-  async getSuggestedFollowers(@Req() request: RequestWithUser): Promise<any> {
+  async getSuggestedFollowers(
+    @Req() request: RequestWithUser,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10
+  ): Promise<IResponse<SuggestionFollowerDto[]>> {
     const userId = await getUserId(request);
-    return this.followerService.getSuggestedFollows(userId);
+    return this.followerService.getSuggestedFollows(userId, page, limit);
   }
 
   /**

@@ -540,6 +540,8 @@ export class FollowerService {
 
   async getSuggestedFollows(
     userId: string,
+    page: number = 1,
+    limit: number = 10
   ): Promise<IResponse<SuggestionFollowerDto[]>> {
     try {
       // Lấy các người bạn bạn đang theo dõi
@@ -548,12 +550,21 @@ export class FollowerService {
         relations: ['user_2'],
       });
 
-      // Nếu chưa follow ai, lấy ngẫu nhiên 10 người dùng
+      // Nếu chưa follow ai, lấy ngẫu nhiên người dùng
       if (following.length === 0) {
-        const allUsers = await this.userRepository.find({
-          where: { id: Not(userId) }, // Loại trừ người dùng hiện tại
-          take: 10, // Giới hạn số lượng người dùng gợi ý
-        });
+        const queryBuilder = this.userRepository
+          .createQueryBuilder('user')
+          .where('user.id != :userId', { userId })
+          .orderBy('RANDOM()');
+
+        const totalItems = await queryBuilder.getCount();
+        const skip = (page - 1) * limit;
+
+        const allUsers = await queryBuilder
+          .skip(skip)
+          .take(limit)
+          .getMany();
+
         return ResponseUtil.success(
           allUsers.map((user) => ({
             id: user.id,
@@ -561,14 +572,14 @@ export class FollowerService {
             avatar: user.avatar,
             mutualFriend: '',
             createdAt: new Date(),
-          })),
+          }))
         );
       }
 
       const followingIds = following.map((f) => f.user_2_id);
 
       // Tìm những người mà bạn bè của bạn đang follow
-      const suggestionsRaw = await this.followerRepository
+      const queryBuilder = this.followerRepository
         .createQueryBuilder('f')
         .innerJoinAndSelect('f.user_2', 'suggestedUser')
         .where('f.user_1_id IN (:...followingIds)', { followingIds })
@@ -584,17 +595,24 @@ export class FollowerService {
             .andWhere('existing.isFollow = true')
             .getQuery();
           return `NOT EXISTS ${sub}`;
-        })
-        .getMany();
+        });
+
+      const totalItems = await queryBuilder.getCount();
 
       // Nếu không tìm thấy gợi ý từ bạn bè, lấy ngẫu nhiên người dùng khác
-      if (suggestionsRaw.length === 0) {
-        const otherUsers = await this.userRepository
+      if (totalItems === 0) {
+        const otherUsersQuery = this.userRepository
           .createQueryBuilder('user')
           .where('user.id != :userId', { userId })
           .andWhere('user.id NOT IN (:...followingIds)', { followingIds: [...followingIds, userId] })
-          .orderBy('RANDOM()')
-          .take(10)
+          .orderBy('RANDOM()');
+
+        const totalOtherUsers = await otherUsersQuery.getCount();
+        const skip = (page - 1) * limit;
+
+        const otherUsers = await otherUsersQuery
+          .skip(skip)
+          .take(limit)
           .getMany();
 
         return ResponseUtil.success(
@@ -604,9 +622,16 @@ export class FollowerService {
             avatar: user.avatar,
             mutualFriend: '',
             createdAt: new Date(),
-          })),
+          }))
         );
       }
+
+      // Lấy danh sách gợi ý với phân trang
+      const skip = (page - 1) * limit;
+      const suggestionsRaw = await queryBuilder
+        .skip(skip)
+        .take(limit)
+        .getMany();
 
       // Map người gợi ý (mutual friend) đầu tiên cho mỗi suggested user
       const resultMap = new Map<string, SuggestionFollowerDto>();
